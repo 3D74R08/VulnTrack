@@ -1,0 +1,125 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VulnTrack API",
+    "description": "API Core para el sistema de Gestión de Vulnerabilidades (DevSecOps MVP)",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor Local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "summary": "Iniciar Sesión",
+        "tags": ["Autenticación"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "correo": { "type": "string" },
+                  "password": { "type": "string" },
+                  "mfa_token": { "type": "string", "description": "Opcional si MFA no está activo" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token JWT generado exitosamente o petición de MFA"
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/configurar": {
+      "get": {
+        "summary": "Generar Código QR para MFA",
+        "tags": ["Autenticación"],
+        "responses": {
+          "200": {
+            "description": "Devuelve la URI del QR en Base64"
+          }
+        }
+      }
+    },
+    "/api/hallazgos": {
+      "get": {
+        "summary": "Obtener todos los hallazgos",
+        "tags": ["Hallazgos"],
+        "responses": {
+          "200": {
+            "description": "Lista de hallazgos activos"
+          }
+        }
+      },
+      "post": {
+        "summary": "Reportar un nuevo hallazgo",
+        "tags": ["Hallazgos"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titulo": { "type": "string" },
+                  "descripcion": { "type": "string" },
+                  "cve_id": { "type": "string" },
+                  "severidad": { "type": "string" },
+                  "cvss": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Hallazgo creado exitosamente"
+          }
+        }
+      }
+    },
+    "/api/hallazgos/nvd/{cve}": {
+      "get": {
+        "summary": "Consultar vulnerabilidad oficial en NIST (Proxy)",
+        "tags": ["Hallazgos"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cve",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "CVE-2021-44228"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos limpios de la NVD API"
+          }
+        }
+      }
+    }
+  }
+}
