@@ -120,6 +120,17 @@
           }
         }
       }
+    },
+    "/api/dashboard/metricas": {
+      "get": {
+        "summary": "Obtener métricas consolidadas para el Dashboard",
+        "tags": ["Dashboard"],
+        "responses": {
+          "200": {
+            "description": "Estadísticas de activos, vulnerabilidades y remediaciones"
+          }
+        }
+      }
     }
   }
 }
