@@ -85,7 +85,8 @@ const login = async (req, res) => {
             const isValid = speakeasy.totp.verify({
                 secret: usuario.mfa_secret,
                 encoding: 'base32',
-                token: mfa_token
+                token: mfa_token,
+                window: 1
             });
 
             if (!isValid) {
@@ -113,10 +114,21 @@ const login = async (req, res) => {
 const configurarMFA = async (req, res) => {
     const { id_usuario, id_empresa } = req.usuario; 
     
-    // Generar un secreto único para el usuario con speakeasy
-    const secret = speakeasy.generateSecret({ name: 'VulnTrack (' + id_usuario.substring(0,6) + ')' });
-    
     try {
+        const client = await pool.connect();
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('app.current_tenant', 'BYPASS', true)");
+        const resultUser = await client.query('SELECT mfa_enabled FROM usuarios WHERE id_usuario = $1', [id_usuario]);
+        await client.query('COMMIT');
+        client.release();
+
+        if (resultUser.rows[0].mfa_enabled) {
+            return res.status(400).json({ error: "El MFA ya está configurado y activo." });
+        }
+
+        // Generar un secreto único para el usuario con speakeasy
+        const secret = speakeasy.generateSecret({ name: 'VulnTrack (' + id_usuario.substring(0,6) + ')' });
+        
         // Guardar el secreto en base32 en la BD (aún sin activarlo)
         await queryConRLS(id_empresa, 
             'UPDATE usuarios SET mfa_secret = $1 WHERE id_usuario = $2 AND estado = TRUE', 
@@ -158,7 +170,8 @@ const habilitarMFA = async (req, res) => {
         const isValid = speakeasy.totp.verify({
             secret: mfa_secret,
             encoding: 'base32',
-            token: token_mfa
+            token: token_mfa,
+            window: 1
         });
         
         if (isValid) {

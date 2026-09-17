@@ -12,29 +12,29 @@ const obtenerMetricas = async (req, res) => {
 
         // 2. Conteo de Hallazgos por Severidad
         const severidadRes = await queryConRLS(id_empresa, 
-            \`SELECT severidad, COUNT(*) as cantidad 
+            `SELECT severidad, COUNT(*) as cantidad 
              FROM hallazgos_vuln 
              WHERE estado = TRUE 
-             GROUP BY severidad\`
+             GROUP BY severidad`
         );
         const hallazgosPorSeveridad = severidadRes.rows;
 
         // 3. Estado de los Planes de Remediación
         const remediacionRes = await queryConRLS(id_empresa, 
-            \`SELECT estado_plan, COUNT(*) as cantidad 
+            `SELECT estado_plan, COUNT(*) as cantidad 
              FROM planes_remediacion 
              WHERE estado = TRUE 
-             GROUP BY estado_plan\`
+             GROUP BY estado_plan`
         );
         const planesPorEstado = remediacionRes.rows;
 
         // 4. Últimos 5 Hallazgos Críticos o Altos (Para una tabla rápida en el Dashboard)
         const topHallazgosRes = await queryConRLS(id_empresa, 
-            \`SELECT titulo, severidad, estado_hallazgo, fecha_descubrimiento 
+            `SELECT titulo, severidad, estado_hallazgo, fecha_descubrimiento 
              FROM hallazgos_vuln 
              WHERE estado = TRUE AND (severidad = 'CRITICAL' OR severidad = 'HIGH')
              ORDER BY fecha_descubrimiento DESC 
-             LIMIT 5\`
+             LIMIT 5`
         );
         const alertasRecientes = topHallazgosRes.rows;
 

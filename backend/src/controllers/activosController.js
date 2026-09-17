@@ -1,12 +1,15 @@
 const { queryConRLS } = require('../config/db');
 
 const crearActivo = async (req, res) => {
-    const { nombre, tipo, criticidad, propietario } = req.body;
+    let { nombre, tipo, criticidad, propietario } = req.body;
     const { id_empresa } = req.usuario; // Extraído del token JWT por el middleware
 
     if (!nombre || !tipo) {
         return res.status(400).json({ error: "El nombre y el tipo de activo son obligatorios." });
     }
+    
+    const critMap = { 'HIGH': 'ALTA', 'MEDIUM': 'MEDIA', 'LOW': 'BAJA' };
+    if (critMap[criticidad]) criticidad = critMap[criticidad];
 
     try {
         // queryConRLS inyecta id_empresa en la sesión de Postgres para el aislamiento

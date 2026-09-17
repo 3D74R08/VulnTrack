@@ -1,0 +1,266 @@
+import { useState } from 'react';
+import { Shield, LayoutDashboard, Users, ShieldCheck, Monitor, AlertTriangle, Crosshair, CheckSquare, FileText, ClipboardList, LogOut, Bell, Search, Settings, Smartphone } from 'lucide-react';
+import ResumenDashboard from './views/ResumenDashboard';
+import ActivosView from './views/ActivosView';
+import VulnerabilidadesView from './views/VulnerabilidadesView';
+import RiesgosView from './views/RiesgosView';
+import RemediacionesView from './views/RemediacionesView';
+import UsuariosView from './views/UsuariosView';
+import RolesPermisosView from './views/RolesPermisosView';
+import EvidenciasView from './views/EvidenciasView';
+import ReportesView from './views/ReportesView';
+
+export default function Dashboard({ onLogout }) {
+  const [vistaActual, setVistaActual] = useState('dashboard');
+  const [qrMfa, setQrMfa] = useState('');
+  const [tokenMfa, setTokenMfa] = useState('');
+  const [busquedaGlobal, setBusquedaGlobal] = useState('');
+
+  const configurarMFA = async () => {
+    try {
+      const token = localStorage.getItem('vulntrack_token');
+      const response = await fetch('http://localhost:3000/api/auth/mfa/configurar', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setQrMfa(data.qr_code);
+      }
+    } catch (err) {
+      alert("Error generando QR");
+    }
+  };
+
+  const activarMFA = async () => {
+    try {
+      const token = localStorage.getItem('vulntrack_token');
+      const response = await fetch('http://localhost:3000/api/auth/mfa/habilitar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token_mfa: tokenMfa })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert("¡MFA Activado exitosamente!");
+        setQrMfa('');
+        setTokenMfa('');
+      } else {
+        alert(data.error || "Código inválido");
+      }
+    } catch (err) {
+      alert("Error verificando código");
+    }
+  };
+
+  const navSections = [
+    {
+      items: [
+        { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
+        { id: 'usuarios', label: 'Usuarios', icon: Users },
+        { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck },
+        { id: 'activos', label: 'Activos', icon: Monitor },
+        { id: 'vulnerabilidades', label: 'Vulnerabilidades', icon: AlertTriangle },
+        { id: 'riesgos', label: 'Riesgos', icon: Crosshair },
+        { id: 'remediaciones', label: 'Remediación', icon: CheckSquare },
+        { id: 'evidencias', label: 'Evidencias', icon: ClipboardList },
+        { id: 'reportes', label: 'Reportes', icon: FileText },
+      ]
+    }
+  ];
+
+  const tituloVista = {
+    dashboard: 'Dashboard',
+    usuarios: 'Usuarios',
+    roles: 'Roles y Permisos',
+    activos: 'Activos',
+    vulnerabilidades: 'Vulnerabilidades',
+    riesgos: 'Riesgos',
+    remediaciones: 'Remediación',
+    evidencias: 'Evidencias',
+    reportes: 'Reportes',
+    configuracion: 'Configuración'
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex font-sans">
+
+      {/* Sidebar */}
+      <aside className="w-64 bg-[#0B132B] text-gray-300 flex flex-col h-screen sticky top-0 overflow-hidden">
+
+        {/* Logo */}
+        <div className="p-5 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-xl">
+              <Shield className="text-white" size={22} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white leading-tight">SecureHub</h1>
+              <p className="text-[10px] text-gray-500">Vulnerability Management</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <div className="flex-1 overflow-y-auto px-3 space-y-1">
+          {navSections[0].items.map(item => {
+            const Icon = item.icon;
+            const isActive = vistaActual === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setVistaActual(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                }`}
+              >
+                <Icon size={18} className={isActive ? 'text-white' : 'text-gray-500'} />
+                {item.label}
+              </button>
+            );
+          })}
+
+          <div className="h-px bg-gray-800 my-4"></div>
+
+          <button
+            onClick={() => setVistaActual('configuracion')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+              vistaActual === 'configuracion'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+            }`}
+          >
+            <Settings size={18} className={vistaActual === 'configuracion' ? 'text-white' : 'text-gray-500'} />
+            Configuración
+          </button>
+        </div>
+
+        {/* Bottom */}
+        <div className="p-4 space-y-3 border-t border-gray-800/50">
+          <div
+            className="bg-white/5 rounded-lg p-3 border border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors"
+            onClick={configurarMFA}
+          >
+            <div className="w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.7)]"></div>
+            <div>
+              <p className="text-xs font-bold text-white">Sistema activo</p>
+              <p className="text-[10px] text-gray-500">Servicios locales</p>
+            </div>
+          </div>
+
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 text-xs text-gray-500 hover:text-white transition-colors px-1"
+          >
+            <LogOut size={14} /> Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="bg-white h-14 border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative max-w-md flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={busquedaGlobal}
+                onChange={e => setBusquedaGlobal(e.target.value)}
+                placeholder="Buscar activos, vulnerabilidades, CVE..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <button className="relative text-gray-400 hover:text-gray-600 transition-colors">
+              <Bell size={20} />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">3</span>
+            </button>
+            <div className="flex items-center gap-3 pl-5 border-l border-gray-200">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                D
+              </div>
+              <div className="hidden md:block">
+                <p className="text-sm font-semibold text-gray-700 leading-tight">Administrador</p>
+                <p className="text-[10px] text-gray-400">Admin</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="p-8 flex-1 bg-white">
+          {vistaActual === 'dashboard' && <ResumenDashboard />}
+          {vistaActual === 'usuarios' && <UsuariosView />}
+          {vistaActual === 'roles' && <RolesPermisosView />}
+          {vistaActual === 'activos' && <ActivosView />}
+          {vistaActual === 'vulnerabilidades' && <VulnerabilidadesView />}
+          {vistaActual === 'riesgos' && <RiesgosView />}
+          {vistaActual === 'remediaciones' && <RemediacionesView />}
+          {vistaActual === 'evidencias' && <EvidenciasView />}
+          {vistaActual === 'reportes' && <ReportesView />}
+
+          {vistaActual === 'configuracion' && (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <Settings size={48} className="mb-4 opacity-30" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Configuración</h3>
+              <p className="text-sm text-gray-500 max-w-sm text-center">
+                Módulo de configuración del sistema.
+              </p>
+              <button
+                onClick={configurarMFA}
+                className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+              >
+                <Smartphone size={16} /> Configurar MFA
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* MFA Modal */}
+      {qrMfa && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm border border-gray-100">
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Activar MFA</h3>
+            <p className="text-gray-500 text-sm mb-4">1. Escanea el código con tu app (Google Authenticator).</p>
+            <img src={qrMfa} alt="QR MFA" className="mx-auto border-4 border-gray-100 rounded-xl shadow-sm mb-4" />
+            <p className="text-gray-500 text-sm mb-2">2. Ingresa el código de 6 dígitos para verificar.</p>
+            <input
+              type="text"
+              maxLength="6"
+              value={tokenMfa}
+              onChange={e => setTokenMfa(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="123456"
+              className="w-full text-center text-2xl tracking-[0.5em] p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-blue-500"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setQrMfa(''); setTokenMfa(''); }}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={activarMFA}
+                disabled={tokenMfa.length !== 6}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg font-medium transition-colors"
+              >
+                Verificar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -2,16 +2,40 @@
 const { queryConRLS } = require('../config/db');
 
 const crearHallazgo = async (req, res) => {
-    const { titulo, descripcion, cve_id, severidad, cvss } = req.body;
+    let { titulo, descripcion, cve_id, severidad, cvss, id_activo } = req.body;
     const { id_empresa, id_usuario } = req.usuario;
+    
+    // Mapear severidad de ingles (NVD) a español (DB CHECK CONSTRAINT)
+    const severityMap = {
+        'CRITICAL': 'CRITICA',
+        'HIGH': 'ALTA',
+        'MEDIUM': 'MEDIA',
+        'LOW': 'BAJA'
+    };
+    if (severityMap[severidad]) {
+        severidad = severityMap[severidad];
+    }
+    
     try {
         const result = await queryConRLS(id_empresa, 
             `INSERT INTO hallazgos_vuln (id_empresa, titulo, descripcion, cve_id, severidad, cvss, estado_hallazgo, id_auditor) 
              VALUES ($1, $2, $3, $4, $5, $6, 'ABIERTO', $7) RETURNING *`,
             [id_empresa, titulo, descripcion, cve_id, severidad, cvss, id_usuario]
         );
-        res.status(201).json(result.rows[0]);
+        
+        const hallazgo = result.rows[0];
+
+        // Insertar relacion con activo si se envio id_activo
+        if (id_activo) {
+            await queryConRLS(id_empresa,
+                `INSERT INTO hallazgos_activos (id_hallazgo, id_activo, id_empresa) VALUES ($1, $2, $3)`,
+                [hallazgo.id_hallazgo, id_activo, id_empresa]
+            );
+        }
+
+        res.status(201).json(hallazgo);
     } catch (error) {
+        console.error("Error crearHallazgo:", error);
         res.status(500).json({ error: "Error al crear hallazgo." });
     }
 };

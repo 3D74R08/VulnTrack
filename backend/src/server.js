@@ -10,6 +10,7 @@ const hallazgosRoutes = require('./routes/hallazgosRoutes');
 const riesgosRoutes = require('./routes/riesgosRoutes');
 const remediacionRoutes = require('./routes/remediacionRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const auditoriaRoutes = require('./routes/auditoriaRoutes');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/hallazgos', hallazgosRoutes);
 app.use('/api/riesgos', riesgosRoutes);
 app.use('/api/remediacion', remediacionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auditoria', auditoriaRoutes);
 
 // Manejador de rutas no encontradas
 app.use((req, res) => {
