@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TriangleAlert, Search, Plus, X } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function VulnerabilidadesView() {
   const [hallazgos, setHallazgos] = useState([]);
@@ -142,13 +143,15 @@ export default function VulnerabilidadesView() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Vulnerabilidades</h1>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Registrar vulnerabilidad
-        </button>
+        {['ADMINISTRADOR', 'AUDITOR'].includes(getUserRole()) && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Registrar vulnerabilidad
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">

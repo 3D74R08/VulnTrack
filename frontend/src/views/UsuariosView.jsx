@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Edit, Trash2, X } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function UsuariosView() {
   const [usuarios, setUsuarios] = useState([]);
@@ -132,20 +133,26 @@ export default function UsuariosView() {
                       {user.fecha_creacion ? new Date(user.fecha_creacion).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4 text-center space-x-2">
-                      <button 
-                        onClick={() => openEditModal(user)}
-                        className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar rol"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(user.id_usuario)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar usuario"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {getUserRole() === 'ADMINISTRADOR' ? (
+                        <>
+                          <button 
+                            onClick={() => openEditModal(user)}
+                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar rol"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(user.id_usuario)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Sin permisos</span>
+                      )}
                     </td>
                   </tr>
                 ))}

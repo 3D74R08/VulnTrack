@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/hallazgosController');
 const { verificarToken } = require('../middlewares/authMiddleware');
+const { autorizarRoles } = require('../middlewares/roleMiddleware');
 
 router.use(verificarToken);
-router.post('/', controller.crearHallazgo);
+// Solo Administrador y Auditor pueden registrar o eliminar hallazgos
+router.post('/', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.crearHallazgo);
+router.delete('/:id', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.eliminarHallazgo);
+// Todos pueden leer hallazgos y consultar NVD
 router.get('/', controller.obtenerHallazgos);
 router.get('/nvd/:cve', controller.consultarNVD);
-router.delete('/:id', controller.eliminarHallazgo);
 
 module.exports = router;

@@ -14,7 +14,7 @@ import {
 
 const predefinedRoles = [
   {
-    id: 1,
+    id: 'ADMINISTRADOR',
     name: 'Administrador',
     description: 'Acceso total a todos los módulos y configuraciones.',
     icon: ShieldAlert,
@@ -24,44 +24,44 @@ const predefinedRoles = [
     summary: 'Full access'
   },
   {
-    id: 2,
-    name: 'Analista de Seguridad',
-    description: 'Puede ver, analizar y gestionar vulnerabilidades y riesgos.',
+    id: 'AUDITOR',
+    name: 'Auditor / Pentester',
+    description: 'Capacidad de ingresar nuevas vulnerabilidades, asignar identificadores (CVEs), establecer criticidad y actualizar estados.',
     icon: Activity,
     iconColor: 'text-blue-500',
     bgColor: 'bg-blue-100',
     gradient: 'from-blue-500 to-blue-700',
-    summary: 'Módulos principales'
+    summary: 'Gestión de hallazgos'
   },
   {
-    id: 3,
+    id: 'GESTOR_ACTIVOS',
     name: 'Gestor de Activos',
-    description: 'Gestiona activos y su criticidad.',
+    description: 'Gestiona el inventario de activos y su criticidad.',
     icon: Briefcase,
     iconColor: 'text-green-500',
     bgColor: 'bg-green-100',
     gradient: 'from-green-500 to-green-700',
-    summary: 'Activos + Vulnerabilidades'
+    summary: 'Inventario'
   },
   {
-    id: 4,
-    name: 'Remediador',
-    description: 'Gestiona planes de acción y seguimiento.',
+    id: 'REMEDIADOR',
+    name: 'SysAdmin / Desarrollador',
+    description: 'Acceso de solo lectura limitado a visualizar los hallazgos asignados a su área técnica para proceder con la corrección.',
     icon: AlertCircle,
     iconColor: 'text-orange-500',
     bgColor: 'bg-orange-100',
     gradient: 'from-orange-500 to-orange-700',
-    summary: 'Remediación + Evidencias'
+    summary: 'Remediación (Lectura)'
   },
   {
-    id: 5,
-    name: 'Auditor',
-    description: 'Solo lectura. Acceso a auditoría y reportes.',
+    id: 'ANALISTA_SEGURIDAD',
+    name: 'Analista de Seguridad',
+    description: 'Análisis de riesgo y priorización de remediaciones.',
     icon: Eye,
     iconColor: 'text-gray-500',
     bgColor: 'bg-gray-100',
     gradient: 'from-gray-500 to-gray-700',
-    summary: 'Reportes + Auditoría'
+    summary: 'Inteligencia de Riesgo'
   }
 ];
 
@@ -93,7 +93,7 @@ export default function RolesPermisosView() {
   }, []);
 
   const getUserCount = (roleId) => {
-    return users.filter(u => u.id_rol === roleId).length;
+    return users.filter(u => u.rol === roleId).length;
   };
 
   return (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Plus, Search, Filter, X } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function RemediacionesView() {
   const [planes, setPlanes] = useState([]);
@@ -102,13 +103,15 @@ export default function RemediacionesView() {
           </div>
           <p className="text-gray-500">Planes de acción</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Crear plan de acción</span>
-        </button>
+        {['ADMINISTRADOR', 'ANALISTA_SEGURIDAD', 'AUDITOR'].includes(getUserRole()) && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Crear plan de acción</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

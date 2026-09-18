@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, Search, Filter, Plus, X } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function ActivosView() {
   const [activos, setActivos] = useState([]);
@@ -108,13 +109,15 @@ export default function ActivosView() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Activos</h1>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Registrar activo
-        </button>
+        {['ADMINISTRADOR', 'GESTOR_ACTIVOS'].includes(getUserRole()) && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Registrar activo
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -179,7 +182,11 @@ export default function ActivosView() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDelete(activo.id_activo)} className="text-red-500 hover:text-red-700 text-xs font-medium">Eliminar</button>
+                      {['ADMINISTRADOR', 'GESTOR_ACTIVOS'].includes(getUserRole()) ? (
+                        <button onClick={() => handleDelete(activo.id_activo)} className="text-red-500 hover:text-red-700 text-xs font-medium">Eliminar</button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Lectura</span>
+                      )}
                     </td>
                   </tr>
                 ))

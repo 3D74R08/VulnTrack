@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Target, Plus, X } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function RiesgosView() {
   const [riesgos, setRiesgos] = useState([]);
@@ -86,13 +87,15 @@ export default function RiesgosView() {
           <Target className="w-8 h-8 text-blue-500" />
           <h1 className="text-2xl font-bold text-gray-800">Evaluación y Gestión de Riesgos</h1>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Evaluar riesgo</span>
-        </button>
+        {['ADMINISTRADOR', 'ANALISTA_SEGURIDAD'].includes(getUserRole()) && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Evaluar riesgo</span>
+          </button>
+        )}
       </div>
 
       {loading ? (

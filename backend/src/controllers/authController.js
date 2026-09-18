@@ -58,7 +58,7 @@ const login = async (req, res) => {
         await client.query("SELECT set_config('app.current_tenant', 'BYPASS', true)");
         
         const result = await client.query(
-            'SELECT id_usuario, id_empresa, password_hash, rol, mfa_secret, mfa_enabled FROM usuarios WHERE correo = $1 AND estado = TRUE',
+            'SELECT id_usuario, id_empresa, nombre_completo, correo, password_hash, rol, mfa_secret, mfa_enabled FROM usuarios WHERE correo = $1 AND estado = TRUE',
             [correo]
         );
         await client.query('COMMIT');
@@ -97,7 +97,9 @@ const login = async (req, res) => {
         const payload = {
             id_usuario: usuario.id_usuario,
             id_empresa: usuario.id_empresa,
-            rol: usuario.rol
+            rol: usuario.rol,
+            nombre_completo: usuario.nombre_completo,
+            correo: usuario.correo
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });

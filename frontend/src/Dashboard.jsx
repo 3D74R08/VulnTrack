@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, LayoutDashboard, Users, ShieldCheck, Monitor, AlertTriangle, Crosshair, CheckSquare, FileText, ClipboardList, LogOut, Bell, Search, Settings, Smartphone } from 'lucide-react';
 import ResumenDashboard from './views/ResumenDashboard';
 import ActivosView from './views/ActivosView';
@@ -9,12 +9,38 @@ import UsuariosView from './views/UsuariosView';
 import RolesPermisosView from './views/RolesPermisosView';
 import EvidenciasView from './views/EvidenciasView';
 import ReportesView from './views/ReportesView';
+import { getUserData } from './utils/auth';
 
 export default function Dashboard({ onLogout }) {
   const [vistaActual, setVistaActual] = useState('dashboard');
   const [qrMfa, setQrMfa] = useState('');
   const [tokenMfa, setTokenMfa] = useState('');
   const [busquedaGlobal, setBusquedaGlobal] = useState('');
+  
+  const [userData, setUserData] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    setUserData(getUserData());
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('vulntrack_token');
+      const res = await fetch('http://localhost:3000/api/auditoria', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Take the latest 5 events as notifications
+        setNotifications(data.slice(0, 5));
+      }
+    } catch (e) {
+      console.error('Error fetching notifications:', e);
+    }
+  };
 
   const configurarMFA = async () => {
     try {
@@ -181,17 +207,52 @@ export default function Dashboard({ onLogout }) {
           </div>
 
           <div className="flex items-center gap-5">
-            <button className="relative text-gray-400 hover:text-gray-600 transition-colors">
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">3</span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Bell size={20} />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800 text-sm">Notificaciones (Auditoría)</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">No hay actividad reciente</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id_evento} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                          <p className="text-xs font-semibold text-blue-600">{notif.modulo}</p>
+                          <p className="text-sm text-gray-800 line-clamp-2">{notif.detalles}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.fecha).toLocaleString()}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-3 pl-5 border-l border-gray-200">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
-                D
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+                {userData?.nombre_completo ? userData.nombre_completo.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-gray-700 leading-tight">Administrador</p>
-                <p className="text-[10px] text-gray-400">Admin</p>
+                <p className="text-sm font-semibold text-gray-700 leading-tight">
+                  {userData?.nombre_completo || 'Usuario'}
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {userData?.rol?.replace('_', ' ') || 'Cargando...'}
+                </p>
               </div>
             </div>
           </div>

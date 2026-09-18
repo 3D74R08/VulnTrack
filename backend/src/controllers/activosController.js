@@ -1,8 +1,9 @@
 const { queryConRLS } = require('../config/db');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 const crearActivo = async (req, res) => {
     let { nombre, tipo, criticidad, propietario } = req.body;
-    const { id_empresa } = req.usuario; // Extraído del token JWT por el middleware
+    const { id_empresa, id_usuario } = req.usuario; // Extraído del token JWT por el middleware
 
     if (!nombre || !tipo) {
         return res.status(400).json({ error: "El nombre y el tipo de activo son obligatorios." });
@@ -18,7 +19,9 @@ const crearActivo = async (req, res) => {
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [id_empresa, nombre, tipo, criticidad || 'MEDIA', propietario || 'No asignado']
         );
-        res.status(201).json(result.rows[0]);
+        const activo = result.rows[0];
+        await registrarAuditoria(id_empresa, id_usuario, 'Registró activo', 'Activos', { id_activo: activo.id_activo, nombre }, req.ip);
+        res.status(201).json(activo);
     } catch (error) {
         console.error("[ERROR CREAR ACTIVO]:", error.message);
         res.status(500).json({ error: "Fallo al crear el activo." });

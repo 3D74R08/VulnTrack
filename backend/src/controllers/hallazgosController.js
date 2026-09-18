@@ -1,5 +1,6 @@
 
 const { queryConRLS } = require('../config/db');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 const crearHallazgo = async (req, res) => {
     let { titulo, descripcion, cve_id, severidad, cvss, id_activo } = req.body;
@@ -33,6 +34,7 @@ const crearHallazgo = async (req, res) => {
             );
         }
 
+        await registrarAuditoria(id_empresa, id_usuario, 'Registró vulnerabilidad', 'Vulnerabilidades', { id_hallazgo: hallazgo.id_hallazgo, cve_id: hallazgo.cve_id }, req.ip);
         res.status(201).json(hallazgo);
     } catch (error) {
         console.error("Error crearHallazgo:", error);

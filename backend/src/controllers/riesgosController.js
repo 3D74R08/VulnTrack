@@ -1,9 +1,10 @@
 
 const { queryConRLS } = require('../config/db');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 const registrarRiesgo = async (req, res) => {
     const { id_hallazgo, probabilidad, impacto } = req.body;
-    const { id_empresa } = req.usuario;
+    const { id_empresa, id_usuario } = req.usuario;
     
     // Logica basica de Matriz
     let riesgo_global = 'MEDIO';
@@ -16,7 +17,9 @@ const registrarRiesgo = async (req, res) => {
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [id_empresa, id_hallazgo, probabilidad, impacto, riesgo_global]
         );
-        res.status(201).json(result.rows[0]);
+        const riesgo = result.rows[0];
+        await registrarAuditoria(id_empresa, id_usuario, 'Evaluó riesgo', 'Riesgos', { riesgo_global }, req.ip);
+        res.status(201).json(riesgo);
     } catch (error) {
         res.status(500).json({ error: "Error al registrar riesgo." });
     }
