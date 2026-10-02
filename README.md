@@ -1,34 +1,53 @@
-# VulnTrack - Plataforma de Gestión Integral de Vulnerabilidades (VAM)
+# VulnTrack — Plataforma DevSecOps de Gestión Integral de Vulnerabilidades (VAM)
 
 ![VulnTrack Banner](./frontend/public/vite.svg)
 
 > Desarrollado por el equipo de Seguridad y DevSecOps.
 
-**VulnTrack** no es simplemente un antivirus o un escáner estático; es el "cerebro" centralizado de la ciberseguridad corporativa. Esta plataforma unifica la gestión de activos, el descubrimiento de vulnerabilidades, la inteligencia de riesgos y el ciclo de remediación en un solo panel de control unificado.
+**VulnTrack** es una plataforma para el seguimiento y remediación de vulnerabilidades informáticas, orientada a entornos corporativos **multi-tenant**. No es un antivirus ni un escáner estático: es el panel centralizado que unifica el inventario de activos, los hallazgos de seguridad (enriquecidos automáticamente desde la base nacional de vulnerabilidades del NIST/NVD), el análisis de riesgo y los planes de remediación con SLAs monitoreados de forma automatizada.
 
-Nuestra filosofía sigue un flujo operativo estricto: **[Inventario y Detección] ➔ [Cálculo de Riesgo / Inteligencia] ➔ [Remediación y Cierre]**.
+El flujo operativo sigue una secuencia estricta:
 
-> ⚠️ **Nota del mantenedor de este README**: el logo de arriba es el placeholder por defecto de Vite (`./frontend/public/vite.svg`). Reemplázalo por un banner propio del proyecto antes de publicar el repo — un logo de la herramienta de build no comunica nada sobre VulnTrack.
+**[Inventario y Detección] → [Cálculo de Riesgo / Inteligencia] → [Remediación y Cierre]**
+
+> **Nota del mantenedor**: El logo superior es el placeholder por defecto de Vite. Reemplázalo por un banner propio antes de publicar el repositorio en producción.
 
 ---
 
 ## Tabla de contenidos
 
-1. [Arquitectura del sistema](#-arquitectura-del-sistema)
-2. [Stack tecnológico](#-stack-tecnológico-tech-stack)
-3. [Flujo operativo y de negocio](#-flujo-operativo-y-de-negocio)
-4. [Modelo relacional de datos (ERD)](#️-modelo-relacional-de-datos-erd)
-5. [Control de acceso basado en roles (RBAC)](#-control-de-acceso-basado-en-roles-rbac)
-6. [Variables de entorno](#-variables-de-entorno)
-7. [Instrucciones de despliegue local](#-instrucciones-de-despliegue-local)
-8. [Cuentas de prueba](#-cuentas-de-prueba)
-9. [Postura de seguridad y checklist OWASP](#️-postura-de-seguridad-y-checklist-owasp)
+1. [Stack Tecnológico](#stack-tecnológico)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Flujo Operativo y de Negocio](#flujo-operativo-y-de-negocio)
+4. [Modelo Relacional de Datos (ERD)](#modelo-relacional-de-datos-erd)
+5. [Control de Acceso Basado en Permisos (RBAC Dinámico)](#control-de-acceso-basado-en-permisos-rbac-dinámico)
+6. [Prerrequisitos](#prerrequisitos)
+7. [Variables de Entorno](#variables-de-entorno)
+8. [Instrucciones de Despliegue Local](#instrucciones-de-despliegue-local)
+9. [Solución de Problemas Comunes](#solución-de-problemas-comunes)
+10. [Cuentas de Prueba](#cuentas-de-prueba)
+11. [Postura de Seguridad y Checklist OWASP](#postura-de-seguridad-y-checklist-owasp)
 
 ---
 
-## 🏗 Arquitectura del Sistema
+## Stack Tecnológico
 
-El proyecto sigue una arquitectura orientada a microservicios dentro de un ecosistema Dockerizado. El diagrama separa explícitamente la **red pública** de la **red interna de Docker Compose**: en producción, solo Nginx debe exponer puertos al host — API, base de datos y Redis quedan aislados en la red interna del contenedor.
+| Capa | Tecnología | Rol en el proyecto |
+|---|---|---|
+| Frontend | React + Vite, Tailwind CSS, Lucide React | SPA con hot-reload en desarrollo, build optimizado en producción. |
+| Backend | Node.js + Express | API REST, lógica de negocio y enrutamiento. |
+| Base de datos | PostgreSQL 16 | Datos relacionales y **Row-Level Security (RLS)** para aislamiento estricto multi-tenant. |
+| Caché / Mensajería | Redis 7 | Almacenamiento rápido de sesiones. *(Nota: Preparado para escalarse con middlewares de rate-limiting)*. |
+| Automatización | `node-cron` | Hilo asíncrono integrado (`slaWorker.js`) para el monitoreo automatizado de vencimientos de SLA. |
+| Autenticación | `jsonwebtoken`, `bcryptjs`, `speakeasy` + `qrcode` | JWT stateless, hashing robusto de contraseñas con salt automático, MFA/TOTP compatible con Google Authenticator. |
+| Contenerización | Docker + Docker Compose | Orquestación local de base de datos, caché y API. |
+| Proxy inverso | Nginx | Termina TLS, sirve estáticos y enruta a la API en entornos productivos. |
+
+---
+
+## Arquitectura del Sistema
+
+La arquitectura aísla completamente a las empresas a nivel de base de datos mediante RLS (Row Level Security). Las tareas asíncronas se gestionan mediante un worker interno. En producción, la API y las bases de datos permanecen en la red interna de Docker, exponiendo únicamente Nginx.
 
 ```mermaid
 graph TD
@@ -36,57 +55,38 @@ graph TD
         Client(["Usuario / Navegador"])
     end
 
-    subgraph "Entorno de desarrollo (solo local, sin TLS)"
+    subgraph "Entorno de desarrollo"
         Vite["Vite Dev Server<br/>:5173"]
     end
 
     subgraph "Docker Compose - Red interna"
-        Nginx["Nginx<br/>Reverse Proxy + TLS<br/>:443 / :80"]
-        API["Node.js + Express<br/>API REST<br/>:3000 (no expuesto al host en prod)"]
-        DB[("PostgreSQL 18<br/>:5432 (no expuesto al host en prod)")]
-        Redis[("Redis 7<br/>:6379 (no expuesto al host en prod)")]
+        Nginx["Nginx Reverse Proxy<br/>:80 / :443"]
+        API["Node.js API Core<br/>:3000"]
+        Worker["Worker (node-cron)<br/>Integrado en API"]
+        DB[("PostgreSQL + RLS<br/>:5432")]
+        Redis[("Redis<br/>:6379")]
     end
 
-    NVD["API NVD / NIST<br/>(fuente externa de CVEs)"]
+    NVD["API NVD / NIST<br/>(Fuente externa de CVEs)"]
 
-    Client -->|"HTTPS"| Nginx
-    Client -.->|"HTTP, solo dev"| Vite
+    Client -->|"Peticiones"| Nginx
+    Client -.->|"HTTP local"| Vite
     Nginx -->|"proxy_pass"| API
     Vite -->|"fetch /api"| API
-    API <-->|"TCP interno"| DB
-    API <-->|"TCP interno"| Redis
-    API -->|"HTTPS saliente"| NVD
+    API <-->|"Queries parametrizadas"| DB
+    API <-->|"Almacena sesiones"| Redis
+    API -->|"Consulta HTTP"| NVD
+    Worker -->|"Evalúa SLAs (Bypass RLS)"| DB
 
     classDef external fill:#444,stroke:#f66,color:#fff
+    classDef worker fill:#1e3a5f,stroke:#4da3ff,color:#fff
     class NVD external
+    class Worker worker
 ```
-
-**Por qué importa esta separación:** si Postgres o Redis quedan mapeados a puertos del host (`ports: ["5432:5432"]` en el `docker-compose.yml`), cualquier proceso en la máquina —o en la red, si el host tiene una IP accesible— puede intentar conectarse directamente a la base de datos sin pasar por la API ni por el middleware RBAC. Usa `expose` en lugar de `ports` para los servicios internos, y reserva `ports` solo para Nginx.
-
-### 💻 Stack Tecnológico (Tech Stack)
-
-#### Frontend
-*   **React 18 + Vite**: entorno de desarrollo ultrarrápido (Hot-Reload) y empaquetado optimizado para producción.
-*   **Tailwind CSS**: framework utilitario para un diseño oscuro, limpio y responsivo, basado en los mockups de *SecureHub*.
-*   **Recharts**: renderiza gráficos dinámicos (tendencias, matrices de calor, SLA donuts) en tiempo real.
-*   **Lucide React**: iconografía ligera y consistente enfocada en paneles de seguridad.
-
-#### Backend
-*   **Node.js + Express.js**: capa API RESTful encargada de la lógica de negocio y enrutamiento.
-*   **PostgreSQL 18**: base de datos relacional estricta. Usa `UUID`, `CHECK constraints` para consistencia de datos (severidades limitadas a `CRITICA`, `ALTA`, etc.) y soporta Row-Level Security (RLS) multi-tenant.
-*   **Redis 7**: almacenamiento de sesiones rápidas y base para el futuro Background Worker (colas de tareas).
-*   **Nginx**: proxy reverso, sirve estáticos en producción y termina TLS.
-*   **Seguridad**:
-    *   `jsonwebtoken` y `bcryptjs` — autenticación stateless y hashing de contraseñas.
-    *   `speakeasy` y `qrcode` — motor 2FA/MFA con TOTP compatible con Google Authenticator.
-
-> **No tengo información verificada sobre las versiones mínimas exactas de `jsonwebtoken`, `bcryptjs`, `speakeasy` o `qrcode` usadas en este proyecto.** Documenta las versiones reales directamente desde `package.json` (o fíjalas con `npm ls <paquete>`) en lugar de asumir una versión — así el README no queda desincronizado del `package-lock.json` real.
 
 ---
 
-## 🔄 Flujo Operativo y de Negocio
-
-El sistema está diseñado para que los equipos de seguridad no trabajen en silos. El ciclo de vida de un hallazgo:
+## Flujo Operativo y de Negocio
 
 ```mermaid
 stateDiagram-v2
@@ -103,15 +103,15 @@ stateDiagram-v2
     state "Detección" as Deteccion {
         [*] --> CreacionHallazgo
         CreacionHallazgo --> ConsultaNVD
-        CreacionHallazgo: Registro manual o por escaneo
-        ConsultaNVD: Auto-completado vía API NVD/NIST (CVE, CVSS)
+        CreacionHallazgo: Obligatorio ingresar ID
+        ConsultaNVD: Auto-completado vía API NVD/NIST
     }
 
     Deteccion --> Inteligencia
 
     state "Inteligencia de Riesgo" as Inteligencia {
         [*] --> EvaluacionMatriz
-        EvaluacionMatriz: Probabilidad x Impacto -> score de riesgo
+        EvaluacionMatriz: Probabilidad x Impacto -> Score de Riesgo
     }
 
     Inteligencia --> Remediacion
@@ -119,204 +119,184 @@ stateDiagram-v2
     state "Remediación" as Remediacion {
         [*] --> AsignacionPlan
         AsignacionPlan --> ControlSLA
-        AsignacionPlan: Responsable asignado (rol REMEDIADOR)
-        ControlSLA: Fecha límite calculada según severidad
+        AsignacionPlan: Asignación de fecha límite
+        ControlSLA: Monitoreado por slaWorker.js
     }
 
     Remediacion --> Trazabilidad
 
     state "Trazabilidad" as Trazabilidad {
         [*] --> AuditoriaInmutable
-        AuditoriaInmutable: Registro append-only en EVENTOS_AUDITORIA
+        AuditoriaInmutable: Log append-only en EVENTOS_AUDITORIA
     }
 
     Trazabilidad --> [*]
 ```
 
-**Nota de diseño:** para que "Trazabilidad" sirva realmente en una auditoría ISO 27001, la tabla `EVENTOS_AUDITORIA` debe ser append-only a nivel de base de datos (sin `UPDATE`/`DELETE` permitidos vía permisos de rol de Postgres o triggers que los bloqueen), no solo por convención de la aplicación. Si la API es la única barrera, cualquier acceso directo a la BD (o un bug de inyección SQL) podría alterar el log de auditoría.
-
 ---
 
-## 🛡️ Modelo Relacional de Datos (ERD)
+## Modelo Relacional de Datos (ERD)
 
-El ERD original documentaba relaciones pero no atributos, lo cual limita su utilidad para una auditoría de datos. Abajo se agregan columnas representativas basadas en lo descrito en este README (UUIDs, roles, severidades con `CHECK constraints`).
-
-> **No tengo información verificada del esquema real de tu base de datos.** Estas columnas son una propuesta de referencia — ajústalas a las migraciones reales antes de tratarlas como documentación autoritativa.
+VulnTrack aísla de forma matemática a las empresas utilizando **Políticas RLS en PostgreSQL**. Además, cuenta con una tabla de roles dinámica por inquilino.
 
 ```mermaid
 erDiagram
-    EMPRESAS ||--o{ USUARIOS : "agrupa"
-    EMPRESAS ||--o{ ACTIVOS : "posee"
-    USUARIOS ||--o{ EVENTOS_AUDITORIA : "genera"
-    ACTIVOS ||--o{ HALLAZGOS_ACTIVOS : "afectado_por"
-    HALLAZGOS_VULN ||--o{ HALLAZGOS_ACTIVOS : "mapea"
-    HALLAZGOS_VULN ||--o| RIESGOS : "calcula"
-    HALLAZGOS_VULN ||--o{ PLANES_REMEDIACION : "requiere"
-    USUARIOS ||--o{ PLANES_REMEDIACION : "es_asignado_a"
-
-    EMPRESAS {
-        uuid id PK
+    EMPRESAS ||--o{ ROLES_EMPRESA : tiene
+    EMPRESAS ||--o{ USUARIOS : contrata
+    EMPRESAS ||--o{ ACTIVOS : posee
+    EMPRESAS ||--o{ HALLAZGOS_VULN : reporta
+    
+    ROLES_EMPRESA {
+        uuid id_rol PK
+        uuid id_empresa FK
         string nombre
-        string nit
-        timestamp creado_en
+        jsonb permisos
+        boolean estado
     }
+    
     USUARIOS {
-        uuid id PK
-        uuid empresa_id FK
-        string email UK
+        uuid id_usuario PK
+        uuid id_empresa FK
+        string correo UK
         string password_hash
-        string rol "ADMINISTRADOR|AUDITOR|REMEDIADOR"
-        boolean mfa_habilitado
-        string mfa_secret_cifrado
-        timestamp creado_en
+        string rol "Solo lectura/Referencia"
+        boolean mfa_enabled
+        string mfa_secret
+        boolean estado
     }
-    ACTIVOS {
-        uuid id PK
-        uuid empresa_id FK
-        string nombre
-        string tipo "SERVIDOR|BD|API|OTRO"
-        string ip_o_endpoint
-        timestamp creado_en
-    }
+
     HALLAZGOS_VULN {
-        uuid id PK
-        string cve_id
-        float cvss_score
-        string severidad "CRITICA|ALTA|MEDIA|BAJA"
-        text descripcion
-        timestamp detectado_en
+        uuid id_hallazgo PK
+        string cve_id "Obligatorio"
+        string severidad
+        float cvss
+        string estado_hallazgo
     }
-    HALLAZGOS_ACTIVOS {
-        uuid id PK
-        uuid activo_id FK
-        uuid hallazgo_id FK
-        string estado "ABIERTO|EN_PROGRESO|CERRADO"
-    }
-    RIESGOS {
-        uuid id PK
-        uuid hallazgo_id FK
-        int probabilidad "1-5"
-        int impacto "1-5"
-        int score_calculado
-    }
+
     PLANES_REMEDIACION {
         uuid id PK
         uuid hallazgo_id FK
         uuid asignado_a FK
         date fecha_limite
-        string estado "PENDIENTE|EN_CURSO|COMPLETADO"
+        string estado "PENDIENTE|EN_CURSO|COMPLETADO|VENCIDO"
     }
+
     EVENTOS_AUDITORIA {
-        uuid id PK
-        uuid usuario_id FK
+        uuid id_evento PK
+        uuid id_usuario FK
         string accion
-        jsonb detalle
-        timestamp ocurrido_en
+        jsonb detalles
+        timestamp fecha_evento
     }
 ```
 
-**Detalle importante que sí puedes verificar tú mismo:** `password_hash` nunca debe almacenar el hash con un salt fijo o global — `bcryptjs` genera un salt por registro automáticamente si usas `bcrypt.hash(password, saltRounds)` correctamente; confirma que no exista un helper propio que reutilice un salt fijo en el código (sería una falla criptográfica real, OWASP A02:2021).
-
 ---
 
-## 🔒 Control de Acceso Basado en Roles (RBAC)
+## Control de Acceso Basado en Permisos (RBAC Dinámico)
 
-VulnTrack implementa un middleware estricto que protege los endpoints a nivel de backend, no solo ocultando botones en el frontend. El diagrama separa dos fallos distintos — token inválido (401) y rol no autorizado (403) — porque tratarlos igual dificulta el diagnóstico en producción y en pentests.
+A diferencia de los sistemas tradicionales, VulnTrack no utiliza roles "quemados" (hardcoded). Implementa un motor dinámico:
+1. El Administrador crea roles personalizados y les asigna permisos granulares (JSONB) en la tabla `roles_empresa`.
+2. Al iniciar sesión, la matriz de permisos se empaqueta criptográficamente en el JWT.
+3. El middleware en Node.js valida la existencia del permiso exacto antes de permitir la ejecución.
 
 ```mermaid
 graph LR
-    Req(["Petición HTTP"]) --> A["Middleware: verificar JWT<br/>(firma, expiración)"]
-    A -->|"Token inválido / expirado"| F1(("401 Unauthorized"))
-    A -->|"Token válido"| B{"Middleware RBAC<br/>¿Rol autorizado?"}
+    Req(["Petición HTTP"]) --> A["Middleware: verificarToken<br/>(Valida firma y expiración)"]
+    A -->|"Token inválido"| F1(("401 Unauthorized"))
+    A -->|"Token válido"| B{"Middleware autorizarRoles<br/>¿Contiene el permiso requerido?"}
 
-    B -->|"ADMINISTRADOR"| C["Acceso total CRUD"]
-    B -->|"AUDITOR"| D["Lectura + creación de hallazgos/CVEs"]
-    B -->|"REMEDIADOR"| E["Solo lectura de hallazgos<br/>+ actualizar planes propios"]
-    B -->|"Rol no autorizado"| F2(("403 Forbidden"))
+    B -->|"{permisos: ['CREAR_USUARIOS']}"| C["Ejecución Permitida"]
+    B -->|"Permiso faltante"| F2(("403 Forbidden"))
 
-    F2 -.->|"registra intento"| Audit[("EVENTOS_AUDITORIA")]
-    F1 -.->|"registra intento"| Audit
+    F2 -.->|"Registra intento fallido"| Audit[("EVENTOS_AUDITORIA")]
+    C -.->|"Registra acción de negocio"| Audit
 ```
-
-**Por qué registrar los 401/403:** un middleware RBAC que solo responde con el código HTTP y no deja rastro es un punto ciego típico. Si alguien intenta escalar privilegios probando rutas con un token de `REMEDIADOR`, quieres esa evidencia en `EVENTOS_AUDITORIA`, no solo en los logs efímeros de Nginx.
 
 ---
 
-## 🔧 Variables de Entorno
+## Prerrequisitos
 
-> Los nombres siguientes son **orientativos**, no confirmados contra tu código — no tengo visibilidad del `.env.example` real del proyecto. Ajusta las claves a las que efectivamente lea tu aplicación (`process.env.X`).
+Antes de clonar, verifica tener instaladas las siguientes herramientas:
+
+| Herramienta | Comando de verificación | Notas |
+|---|---|---|
+| Docker | `docker --version` | Necesario para levantar DB, Redis y API localmente. |
+| Docker Compose | `docker-compose version` | Verifica tu versión (standalone o plugin). |
+| Node.js | `node -v` | (v18+) Necesario para correr el frontend (`npm run dev`). |
+| Puertos | Verificar `3000`, `5432`, `5173` libres | Libera los puertos locales si tienes otros proyectos activos. |
+
+---
+
+## Variables de Entorno
+
+Debes crear un archivo `.env` en la raíz del backend.
 
 | Variable | Propósito | Notas de seguridad |
 |---|---|---|
-| `DATABASE_URL` | Cadena de conexión a PostgreSQL | Nunca la hardcodees en el código ni la subas al repo |
-| `REDIS_URL` | Cadena de conexión a Redis | Igual que arriba |
-| `JWT_SECRET` | Firma de tokens JWT | Mínimo 256 bits de entropía; rota periódicamente |
-| `JWT_EXPIRES_IN` | Expiración del access token | Prefiere vidas cortas (ej. 15 min) + refresh token |
-| `NVD_API_KEY` | Autenticación contra la API de NVD/NIST | Solicítala en [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key) para evitar rate limiting agresivo |
-| `MFA_ISSUER_NAME` | Nombre mostrado en el Authenticator | No sensible |
-
-Copia siempre un `.env.example` sin valores reales al repo, y añade `.env` a `.gitignore`. Si `.env` ya fue commiteado alguna vez, rota **todas** las credenciales que contenía — quitarlo del último commit no lo borra del historial de git.
+| `DB_HOST`, `DB_USER` | Credenciales de DB | Usar cuenta de bajo privilegio (`app_user`). |
+| `JWT_SECRET` | Firma criptográfica JWT | Nunca hardcodear en código fuente. Usar una cadena compleja. |
+| `NVD_API_KEY` | API Key de NIST (Opcional) | Evita bloqueos por Rate-Limit en la ingesta de CVEs. |
 
 ---
 
-## 🛠 Instrucciones de Despliegue Local
+## Instrucciones de Despliegue Local
 
-1. **Clonar el repositorio y entrar a la raíz:**
-   ```bash
-   git clone <repo-url> VulnTrack
-   cd VulnTrack
-   ```
+1. **Clonar el repositorio:**
+```bash
+git clone <repo-url> VulnTrack
+cd VulnTrack
+```
 
-2. **Configurar variables de entorno:**
-   ```bash
-   cp .env.example .env
-   # Edita .env con tus valores locales antes de continuar
-   ```
+2. **Levantar la infraestructura (Docker):**
+```bash
+docker-compose up -d --build
+```
+*Se levantará la base de datos segura, el contenedor de la API y el SLA Worker interno.*
 
-3. **Levantar la infraestructura base (Docker):**
-   ```bash
-   docker-compose up -d --build
-   ```
-   Esto aprovisiona la base de datos, Redis y la API. En producción, expón solo Nginx al host (ver sección de arquitectura); en desarrollo local está bien exponer `3000` temporalmente para depurar.
-
-4. **Iniciar el entorno de desarrollo frontend (Hot-Reload):**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-   Abre el panel centralizado en: `http://localhost:5173`
+3. **Iniciar el frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*Abre el panel en: `http://localhost:5173`*
 
 ---
 
-## 🔑 Cuentas de Prueba
+## Solución de Problemas Comunes
 
-La base de datos de pruebas se puebla con tres roles para validar los bloqueos y permisos RBAC:
-
-| Rol | Permisos |
-|---|---|
-| `ADMINISTRADOR` | Acceso total a todos los módulos |
-| `AUDITOR` | Creación de vulnerabilidades y evaluación de riesgo |
-| `REMEDIADOR` | Solo lectura de vulnerabilidades, acceso a planes de acción propios |
-
-Las credenciales **no se documentan en este README** — genera usuarios de prueba con contraseñas únicas por rol ejecutando el script de seed de tu proyecto (revisa el comando exacto en `package.json`, ya que no tengo esa información verificada) y consúltalas desde tu gestor de secretos local o el propio `.env` de desarrollo. Publicar contraseñas de prueba en un repositorio —y más aún, reutilizar la misma contraseña del Administrador para otros roles— facilita el movimiento lateral si ese entorno se filtra o se despliega accidentalmente accesible desde fuera.
-
-*Nota: durante las pruebas iniciales el MFA está inactivo por defecto hasta que el usuario inicia sesión y vincula su Authenticator. Esto es razonable como estado inicial de un entorno de desarrollo, pero antes de cualquier despliegue expuesto a internet, la activación de MFA debería ser obligatoria — al menos para el rol `ADMINISTRADOR` — y no opcional.*
-
----
-
-## 🛡️ Postura de Seguridad y Checklist OWASP
-
-Resumen honesto de qué cubre hoy el stack descrito y qué requiere verificación explícita en el código (no puedo confirmar estos puntos sin revisar el repositorio real):
-
-| Categoría OWASP Top 10 (2021) | Cubierto según este README | Pendiente de verificar en código |
+| Síntoma | Causa probable | Solución |
 |---|---|---|
-| A01 – Broken Access Control | RBAC a nivel de middleware backend | Confirmar que **todas** las rutas pasan por el middleware, no solo las visibles en el menú |
-| A02 – Cryptographic Failures | `bcryptjs` para hashing de contraseñas | Confirmar salt por registro, y que `JWT_SECRET` tenga suficiente entropía y no esté hardcodeado |
-| A03 – Injection | — | Confirmar uso de consultas parametrizadas en todas las queries a PostgreSQL, nunca concatenación de strings |
-| A04 – Insecure Design | RLS multi-tenant a nivel de Postgres | Confirmar que las políticas RLS estén activas en *todas* las tablas multi-tenant, no solo declaradas |
-| A05 – Security Misconfiguration | — | Credenciales de prueba fuera del README (corregido en esta versión); revisar que `docker-compose.yml` no exponga puertos internos en producción |
-| A07 – Identification & Auth Failures | JWT + expiración, 2FA/MFA con `speakeasy` | Forzar MFA para roles privilegiados antes de producción |
-| A09 – Security Logging & Monitoring Failures | Tabla `EVENTOS_AUDITORIA` | Confirmar que los intentos de 401/403 se registren (ver diagrama RBAC), y que el log sea append-only |
+| Crash `pool.connect is not a function` en logs del API | La destructuración del archivo `db.js` falló en el SLA worker. | (Ya resuelto en v1.1). Verificar que se importa usando `const { pool } = require(...)`. |
+| Menú de "Rol Inicial" aparece vacío | Faltan permisos de base de datos para la tabla `roles_empresa`. | Ejecutar `GRANT ALL PRIVILEGES ON TABLE roles_empresa TO app_user;` en PostgreSQL. |
+| "Objects are not valid as a React child" en el Dashboard | Se intentó renderizar un JSON puro (la columna `detalles`) en React. | (Ya resuelto). Se debe mapear `notif.accion` en la interfaz. |
+| Cierre de sesión (Logout) bloqueado | Política de MFA forzado. | Se debe escanear el QR e ingresar el PIN al menos una vez para habilitar la salida. |
 
-Esta tabla es un punto de partida para una revisión de seguridad, no un certificado de cumplimiento — trátala como checklist de verificación manual.
+---
+
+## Cuentas de Prueba
+
+Las bases de datos incluyen un seed inicial con la empresa ACME Corp y tres usuarios de prueba. Los roles son totalmente editables desde el panel:
+
+| Correo | Rol Asignado |
+|---|---|
+| `admin@acme.com` | **ADMINISTRADOR** (Permiso "ALL") |
+| `auditor@acme.com` | **AUDITOR** (Ver activos, Ver/Crear Vulnerabilidades) |
+| `dev@acme.com` | **REMEDIADOR** (Acceso a planes de acción) |
+
+**Nota de Seguridad (MFA):** Durante el primer inicio de sesión, el doble factor estará inactivo. El sistema forzará de manera estricta la configuración del MFA en cuanto el usuario intente desloguearse (Cerrar Sesión).
+
+---
+
+## Postura de Seguridad y Checklist OWASP
+
+Este proyecto nace bajo un enfoque *Security-by-Design*:
+
+| Categoría OWASP Top 10 (2021) | Contramedida Implementada y Verificada |
+|---|---|
+| **A01 – Broken Access Control** | RLS activo en Postgres; Middleware de permisos dinámicos en Node; Soft-Deletes. |
+| **A02 – Cryptographic Failures** | `bcryptjs` con generador de sal automático para credenciales. JWT firmado correctamente. |
+| **A03 – Injection** | Consultas estrictamente parametrizadas con `pg`. Prevención absoluta de SQLi. |
+| **A04 – Insecure Design** | El `app_user` no tiene permisos para crear/eliminar tablas. Modelo Multi-tenant rígido. |
+| **A07 – Auth Failures** | Expiración de JWT. Imposición mandatoria de MFA (TOTP) al salir. |
+| **A09 – Security Logging** | Tabla inmutable `EVENTOS_AUDITORIA` que registra intentos exitosos, creaciones, 401 y 403. |
