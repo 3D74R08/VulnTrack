@@ -240,24 +240,42 @@ Debes crear un archivo `.env` en la raíz del backend.
 ---
 
 ## Instrucciones de Despliegue Local
-
+ 
 1. **Clonar el repositorio:**
 ```bash
-git clone <repo-url> VulnTrack
-cd VulnTrack
+   git clone <repo-url> VulnTrack
+   cd VulnTrack
 ```
-
-2. **Levantar la infraestructura (Docker):**
+ 
+2. **Configurar variables de entorno:**
 ```bash
-docker-compose up -d --build
+   cp .env.example .env
+   # Edita .env con tus valores locales antes de continuar
 ```
-*Se levantará la base de datos segura, el contenedor de la API y el SLA Worker interno.*
-
-3. **Iniciar el frontend:**
+ 
+3. **Levantar la infraestructura base (Docker):**
 ```bash
-cd frontend
-npm install
-npm run dev
+   docker compose up -d --build
+```
+   Esto aprovisiona PostgreSQL, Redis, la API y el Worker de `node-cron`. Verifica que el servicio `api` tenga `depends_on` con `condition: service_healthy` sobre `db` en tu `docker-compose.yml` — si la API arranca antes de que Postgres esté listo para aceptar conexiones, fallará en el primer intento de conexión y no todos los orquestadores la reinician automáticamente.
+ 
+4. **Confirmar que todos los contenedores están arriba:**
+```bash
+   docker compose ps
+```
+   Todos los servicios deben mostrar estado `running` (o `healthy` si definiste healthchecks).
+ 
+5. **Iniciar el entorno de desarrollo frontend (Hot-Reload):**
+```bash
+   cd frontend
+   npm install
+   npm run dev
+```
+   Abre el panel en: `http://localhost:5173`
+ 
+6. **(Opcional) Ver logs en vivo de un servicio específico**, por ejemplo el worker, para confirmar que el cron job corre:
+```bash
+   docker compose logs -f worker
 ```
 *Abre el panel en: `http://localhost:5173`*
 
