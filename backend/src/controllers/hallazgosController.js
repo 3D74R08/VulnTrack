@@ -6,6 +6,10 @@ const crearHallazgo = async (req, res) => {
     let { titulo, descripcion, cve_id, severidad, cvss, id_activo } = req.body;
     const { id_empresa, id_usuario } = req.usuario;
     
+    if (!cve_id || !cve_id.trim()) {
+        return res.status(400).json({ error: "El CVE ID del NVD es obligatorio." });
+    }
+    
     // Mapear severidad de ingles (NVD) a español (DB CHECK CONSTRAINT)
     const severityMap = {
         'CRITICAL': 'CRITICA',

@@ -11,6 +11,7 @@ const riesgosRoutes = require('./routes/riesgosRoutes');
 const remediacionRoutes = require('./routes/remediacionRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const auditoriaRoutes = require('./routes/auditoriaRoutes');
+const rolesRoutes = require('./routes/rolesRoutes');
 
 const app = express();
 
@@ -38,13 +39,17 @@ app.use('/api/riesgos', riesgosRoutes);
 app.use('/api/remediacion', remediacionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
+app.use('/api/roles', rolesRoutes);
 
 // Manejador de rutas no encontradas
 app.use((req, res) => {
     res.status(404).json({ error: "Endpoint no encontrado o método no permitido." });
 });
 
+const startSLAWorker = require('./workers/slaWorker');
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`[INFO] API Core levantada en puerto ${PORT}`);
+    startSLAWorker();
 });

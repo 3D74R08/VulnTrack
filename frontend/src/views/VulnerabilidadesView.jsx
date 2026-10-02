@@ -241,28 +241,29 @@ export default function VulnerabilidadesView() {
               </button>
             </div>
             
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Buscar en NVD (Opcional)</label>
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Ej: CVE-2023-1234"
-                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.cve_id}
-                  onChange={e => setFormData({...formData, cve_id: e.target.value})}
-                />
-                <button 
-                  type="button"
-                  onClick={handleNvdSearch}
-                  disabled={nvdLoading}
-                  className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
-                >
-                  {nvdLoading ? 'Buscando...' : 'Buscar NVD'}
-                </button>
-              </div>
-            </div>
-
             <form onSubmit={handleCreate} className="space-y-4">
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">CVE ID del NVD (Obligatorio)</label>
+                <div className="flex gap-2">
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="Ej: CVE-2023-1234"
+                    className="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={formData.cve_id}
+                    onChange={e => setFormData({...formData, cve_id: e.target.value})}
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleNvdSearch}
+                    disabled={nvdLoading}
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {nvdLoading ? 'Buscando...' : 'Buscar NVD'}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
                 <input required type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={formData.titulo} onChange={e => setFormData({...formData, titulo: e.target.value})} />

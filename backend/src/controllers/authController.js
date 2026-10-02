@@ -94,12 +94,26 @@ const login = async (req, res) => {
             }
         }
 
+        // Buscar si existe un rol personalizado para esta empresa
+        const rolesCheck = await client.query(
+            'SELECT permisos FROM roles_empresa WHERE id_empresa = $1 AND nombre = $2 AND estado = TRUE',
+            [usuario.id_empresa, usuario.rol]
+        );
+        let permisosAsignados = [];
+        if (rolesCheck.rows.length > 0) {
+            permisosAsignados = rolesCheck.rows[0].permisos;
+        } else if (usuario.rol === 'ADMINISTRADOR') {
+            permisosAsignados = ['ALL'];
+        }
+
         const payload = {
             id_usuario: usuario.id_usuario,
             id_empresa: usuario.id_empresa,
             rol: usuario.rol,
+            permisos: permisosAsignados,
             nombre_completo: usuario.nombre_completo,
-            correo: usuario.correo
+            correo: usuario.correo,
+            mfa_enabled: usuario.mfa_enabled
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });

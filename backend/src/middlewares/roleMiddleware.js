@@ -1,17 +1,30 @@
 /**
- * Middleware para Control de Acceso Basado en Roles (RBAC)
- * @param  {...string} rolesPermitidos - Lista de roles que pueden acceder a la ruta
+ * Middleware para Control de Acceso Basado en Roles y Permisos (RBAC)
  */
-const autorizarRoles = (...rolesPermitidos) => {
+const autorizarRoles = (...permisosRequeridos) => {
     return (req, res, next) => {
-        // req.usuario ya fue inyectado previamente por el authMiddleware
-        if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {
-            console.warn(`[SEGURIDAD] Bloqueo RBAC: Usuario rol ${req.usuario?.rol} intentó evadir privilegios.`);
-            return res.status(403).json({ 
-                error: "Acceso denegado. Privilegios insuficientes para esta operación." 
-            });
+        if (!req.usuario) return res.status(401).json({ error: "No autenticado" });
+        
+        const { rol, permisos } = req.usuario;
+
+        // Si es administrador legacy, pasa
+        if (rol === 'ADMINISTRADOR' || (permisos && permisos.includes('ALL'))) {
+            return next();
         }
-        next(); // El usuario tiene el rol correcto, pasa al controlador
+        
+        // Si tiene el rol legacy o el permiso especifico
+        const tieneAcceso = permisosRequeridos.some(p => 
+            rol === p || (permisos && permisos.includes(p))
+        );
+
+        if (tieneAcceso) {
+            return next();
+        }
+
+        console.warn(`[SEGURIDAD] Bloqueo: Usuario ${req.usuario.correo} intento acceder a un recurso sin permiso.`);
+        return res.status(403).json({ 
+            error: "Acceso denegado. Privilegios insuficientes." 
+        });
     };
 };
 

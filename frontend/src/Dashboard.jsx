@@ -15,6 +15,7 @@ export default function Dashboard({ onLogout }) {
   const [vistaActual, setVistaActual] = useState('dashboard');
   const [qrMfa, setQrMfa] = useState('');
   const [tokenMfa, setTokenMfa] = useState('');
+  const [mfaEnabledSession, setMfaEnabledSession] = useState(false);
   const [busquedaGlobal, setBusquedaGlobal] = useState('');
   
   const [userData, setUserData] = useState(null);
@@ -22,9 +23,20 @@ export default function Dashboard({ onLogout }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    setUserData(getUserData());
+    const data = getUserData();
+    setUserData(data);
+    if (data) setMfaEnabledSession(data.mfa_enabled || false);
     fetchNotifications();
   }, []);
+
+  const handleLogoutAttempt = () => {
+    if (!mfaEnabledSession) {
+      alert("Por políticas de seguridad de la empresa, es OBLIGATORIO configurar el Segundo Factor de Autenticación (MFA) antes de salir. Por favor, asegure su cuenta.");
+      configurarMFA();
+    } else {
+      onLogout();
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -50,7 +62,7 @@ export default function Dashboard({ onLogout }) {
       });
       const data = await response.json();
       if (data.error) {
-        alert(data.error);
+        if(data.error.includes("configurado")){ setMfaEnabledSession(true); onLogout(); } else { alert(data.error); }
       } else {
         setQrMfa(data.qr_code);
       }
@@ -181,7 +193,7 @@ export default function Dashboard({ onLogout }) {
           </div>
 
           <button
-            onClick={onLogout}
+            onClick={handleLogoutAttempt}
             className="flex items-center gap-2 text-xs text-gray-500 hover:text-white transition-colors px-1"
           >
             <LogOut size={14} /> Cerrar sesión
@@ -232,8 +244,8 @@ export default function Dashboard({ onLogout }) {
                       notifications.map(notif => (
                         <div key={notif.id_evento} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors">
                           <p className="text-xs font-semibold text-blue-600">{notif.modulo}</p>
-                          <p className="text-sm text-gray-800 line-clamp-2">{notif.detalles}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.fecha).toLocaleString()}</p>
+                          <p className="text-sm text-gray-800 line-clamp-2">{notif.accion}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.fecha_evento).toLocaleString()}</p>
                         </div>
                       ))
                     )}
