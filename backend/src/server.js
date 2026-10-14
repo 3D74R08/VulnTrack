@@ -26,6 +26,21 @@ const origenesPermitidos = (process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
     : ['http://localhost:5173', 'http://localhost', 'http://localhost:80']);
 
+const esProduccion = process.env.NODE_ENV === 'production';
+
+// En desarrollo aceptamos cualquier origen de localhost o de una IP de LAN privada
+// (10.x, 172.16-31.x, 192.168.x) en cualquier puerto, para no bloquear el dev server
+// de Vite cuando se accede por la IP de la maquina. En produccion manda SOLO la lista blanca.
+const RE_ORIGEN_DEV = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/;
+
+const origenPermitido = (origin) => {
+    // Peticiones sin Origin (curl, health checks, same-origin server-to-server) se permiten.
+    if (!origin) return true;
+    if (origenesPermitidos.includes(origin)) return true;
+    if (!esProduccion && RE_ORIGEN_DEV.test(origin)) return true;
+    return false;
+};
+
 // Swagger Documentation
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
@@ -33,11 +48,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // 1. Defensas perimetrales
 app.use(helmet()); // Oculta Express y configura cabeceras anti-XSS/Clickjacking
-// CORS restringido: solo se aceptan los origenes de la lista blanca (CORS_ORIGINS).
-// Las peticiones sin Origin (p. ej. curl o health checks) se permiten.
+// CORS restringido: lista blanca (CORS_ORIGINS) + localhost/LAN privada en desarrollo.
 app.use(cors({
     origin: (origin, cb) => {
-        if (!origin || origenesPermitidos.includes(origin)) return cb(null, true);
+        if (origenPermitido(origin)) return cb(null, true);
         return cb(new Error('Origen no permitido por CORS'));
     },
     credentials: true,
