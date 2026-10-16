@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { TriangleAlert, Search, Filter, Plus, X, ShieldAlert, Activity, FileText, CheckCircle, Clock } from 'lucide-react';
+import { TriangleAlert, Search, Filter, Plus, X, ShieldAlert, Activity, FileText, CheckCircle, Clock, ShieldCheck, Download } from 'lucide-react';
 import { tienePermiso } from '../utils/auth';
-import { apiGet, apiPost, apiDelete } from '../utils/apiClient';
+import { apiGet, apiPost, apiGetBlob, apiDelete } from '../utils/apiClient';
+import { generarActaAceptacion } from '../utils/documentos';
+import CanvasFirma from '../components/CanvasFirma';
+
+// Fecha de hoy + N días en formato YYYY-MM-DD (para el input date de revisión).
+const fechaMasDias = (dias) => {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+};
+
+// Convierte un Blob (PNG descargado) a dataURL para estampar la firma en el acta.
+const blobADataUrl = (blob) => new Promise((resolve, reject) => {
+  const lector = new FileReader();
+  lector.onload = () => resolve(lector.result);
+  lector.onerror = reject;
+  lector.readAsDataURL(blob);
+});
 
 export default function VulnerabilidadesView() {
   const [hallazgos, setHallazgos] = useState([]);
@@ -16,6 +33,15 @@ export default function VulnerabilidadesView() {
   const [detalleCompleto, setDetalleCompleto] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [nvdLoading, setNvdLoading] = useState(false);
+
+  // --- Aceptación de riesgo (Bloque C) ---
+  const [isAceptacionOpen, setIsAceptacionOpen] = useState(false);
+  const [aceptJustificacion, setAceptJustificacion] = useState('');
+  const [aceptFechaRevision, setAceptFechaRevision] = useState(fechaMasDias(90));
+  const [aceptFirma, setAceptFirma] = useState(null);     // dataURL PNG o null
+  const [aceptFirmado, setAceptFirmado] = useState(false);
+  const [aceptEnviando, setAceptEnviando] = useState(false);
+  const [aceptacionVigente, setAceptacionVigente] = useState(null); // datos de la aceptación vigente
 
   const [formData, setFormData] = useState({
     cve_id: '',
@@ -116,15 +142,80 @@ export default function VulnerabilidadesView() {
   const openDetail = async (hallazgo) => {
     setSelectedHallazgo(hallazgo);
     setDetalleCompleto(null);
+    setAceptacionVigente(null);
     setIsDetailOpen(true);
     setLoadingDetail(true);
     try {
       const data = await apiGet(`/api/hallazgos/${hallazgo.id_hallazgo}`);
       setDetalleCompleto(data);
+      // Si la vuln está ACEPTADA, traer la aceptación vigente para el bloque "Riesgo aceptado".
+      if (data.estado_hallazgo === 'ACEPTADA') {
+        try {
+          const acept = await apiGet(`/api/aceptaciones/${hallazgo.id_hallazgo}`);
+          setAceptacionVigente(acept);
+        } catch (e) {
+          console.error('No se pudo cargar la aceptación vigente:', e);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  // Abre el modal de aceptación de riesgo con los campos reseteados.
+  const abrirAceptacion = () => {
+    setAceptJustificacion('');
+    setAceptFechaRevision(fechaMasDias(90));
+    setAceptFirma(null);
+    setAceptFirmado(false);
+    setIsAceptacionOpen(true);
+  };
+
+  const puedeConfirmarAceptacion = aceptJustificacion.trim() !== '' && aceptFirmado && !aceptEnviando;
+
+  // Envía la aceptación, genera el acta PDF con la firma y refresca el detalle.
+  const confirmarAceptacion = async () => {
+    if (!selectedHallazgo || !puedeConfirmarAceptacion) return;
+    setAceptEnviando(true);
+    try {
+      const respuesta = await apiPost('/api/aceptaciones', {
+        id_hallazgo: selectedHallazgo.id_hallazgo,
+        justificacion: aceptJustificacion.trim(),
+        fecha_revision: aceptFechaRevision,
+        firma: aceptFirma
+      });
+      // Genera y descarga el acta (Markdown -> PDF con la firma estampada).
+      generarActaAceptacion(respuesta);
+      setIsAceptacionOpen(false);
+      // Refrescar listado y detalle para reflejar el estado ACEPTADA.
+      await fetchData();
+      await openDetail({ ...selectedHallazgo, estado_hallazgo: 'ACEPTADA' });
+    } catch (error) {
+      console.error('Error al aceptar el riesgo:', error);
+      alert(error.message || 'No se pudo aceptar el riesgo.');
+    } finally {
+      setAceptEnviando(false);
+    }
+  };
+
+  // Re-descarga el acta de una vuln ya ACEPTADA: usa la aceptación vigente + la firma (blob->dataURL).
+  const descargarActa = async () => {
+    if (!aceptacionVigente || !aceptacionVigente.aceptacion) return;
+    try {
+      let firmaDataUrl = null;
+      const idAceptacion = aceptacionVigente.aceptacion.id_aceptacion;
+      try {
+        const blob = await apiGetBlob(`/api/aceptaciones/${idAceptacion}/firma`);
+        firmaDataUrl = await blobADataUrl(blob);
+      } catch (e) {
+        console.error('No se pudo recuperar la firma:', e);
+      }
+      generarActaAceptacion({ ...aceptacionVigente, firma: firmaDataUrl });
+    } catch (error) {
+      console.error('Error al descargar el acta:', error);
+      alert('No se pudo descargar el acta.');
     }
   };
 
@@ -440,7 +531,43 @@ export default function VulnerabilidadesView() {
                     <Activity className="w-5 h-5 text-brand-primary" />
                     Evaluación de Riesgo Local
                   </h3>
+                  {tienePermiso('ADMINISTRADOR') &&
+                   !['ACEPTADA', 'CERRADA', 'FALSO_POSITIVO'].includes(selectedHallazgo.estado_hallazgo) && (
+                    <button
+                      onClick={abrirAceptacion}
+                      className="flex items-center gap-2 text-sm font-medium text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 rounded-lg px-3 py-1.5 transition-colors"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Aceptar riesgo
+                    </button>
+                  )}
                 </div>
+
+                {/* Bloque "Riesgo aceptado": visible cuando la vuln está ACEPTADA */}
+                {selectedHallazgo.estado_hallazgo === 'ACEPTADA' && aceptacionVigente?.aceptacion && (
+                  <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4" />
+                        Riesgo aceptado
+                      </h4>
+                      <button
+                        onClick={descargarActa}
+                        className="flex items-center gap-2 text-xs font-medium text-amber-800 border border-amber-300 bg-white hover:bg-amber-100 rounded-md px-3 py-1.5 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Descargar acta
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 text-sm text-amber-900">
+                      <p><span className="font-semibold">Justificación:</span> {aceptacionVigente.aceptacion.justificacion}</p>
+                      <p><span className="font-semibold">Aceptado por:</span> {aceptacionVigente.aceptante?.nombre_completo || 'N/D'}</p>
+                      <p><span className="font-semibold">Fecha de aceptación:</span> {aceptacionVigente.aceptacion.fecha_aceptacion ? new Date(aceptacionVigente.aceptacion.fecha_aceptacion).toLocaleDateString('es-CO') : 'N/D'}</p>
+                      <p><span className="font-semibold">Vigente hasta:</span> {aceptacionVigente.aceptacion.fecha_revision ? new Date(aceptacionVigente.aceptacion.fecha_revision).toLocaleDateString('es-CO') : 'N/D'}</p>
+                    </div>
+                  </div>
+                )}
+
                 {loadingDetail ? (
                   <div className="text-center py-6 text-gray-500">Cargando...</div>
                 ) : !detalleCompleto?.riesgo_puntaje ? (
@@ -494,6 +621,70 @@ export default function VulnerabilidadesView() {
                 )}
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Aceptación de Riesgo (Bloque C) */}
+      {isAceptacionOpen && selectedHallazgo && (
+        <div className="fixed inset-0 bg-brand-dark/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-amber-50">
+              <h2 className="text-lg font-bold text-amber-800 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" />
+                Aceptar riesgo
+              </h2>
+              <button onClick={() => setIsAceptacionOpen(false)} className="text-gray-400 hover:text-gray-700 dark:text-gray-300 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Aceptar el riesgo de <span className="font-semibold">{selectedHallazgo.cve_id || 'esta vulnerabilidad'}</span> cancelará
+                los planes de remediación abiertos y marcará la vulnerabilidad como <strong>ACEPTADA</strong>. Esta acción requiere su firma.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Justificación *</label>
+                <textarea
+                  rows="4"
+                  maxLength={4000}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-primary outline-none resize-none"
+                  placeholder="Motivo por el que se asume el riesgo en lugar de remediarlo..."
+                  value={aceptJustificacion}
+                  onChange={(e) => setAceptJustificacion(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de revisión</label>
+                <input
+                  type="date"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-primary outline-none"
+                  value={aceptFechaRevision}
+                  onChange={(e) => setAceptFechaRevision(e.target.value)}
+                />
+                <p className="text-xs text-gray-400 mt-1">Fecha en la que se reevaluará esta aceptación (por defecto, 90 días).</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Firma del aceptante *</label>
+                <CanvasFirma onFirmaChange={(firmado, dataUrl) => { setAceptFirmado(firmado); setAceptFirma(dataUrl); }} />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-brand-light dark:bg-gray-900 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsAceptacionOpen(false)} className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-brand-light dark:hover:bg-gray-900 rounded-lg shadow-sm">Cancelar</button>
+              <button
+                type="button"
+                onClick={confirmarAceptacion}
+                disabled={!puedeConfirmarAceptacion}
+                className="px-5 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 disabled:cursor-not-allowed rounded-lg shadow-sm"
+              >
+                {aceptEnviando ? 'Procesando...' : 'Confirmar aceptación'}
+              </button>
             </div>
           </div>
         </div>

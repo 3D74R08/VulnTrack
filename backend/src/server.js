@@ -14,6 +14,7 @@ const auditoriaRoutes = require('./routes/auditoriaRoutes');
 const rolesRoutes = require('./routes/rolesRoutes');
 const importacionRoutes = require('./routes/importacionRoutes');
 const notificacionesRoutes = require('./routes/notificacionesRoutes');
+const aceptacionRoutes = require('./routes/aceptacionRoutes');
 
 // API stateless: la autenticación protegida utiliza JWT en Authorization: Bearer,
 // no cookies de sesión enviadas automáticamente por el navegador.
@@ -95,6 +96,10 @@ app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/importacion', importacionRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+// Las aceptaciones de riesgo viajan con la firma como dataURL PNG en base64, que
+// puede superar el límite global de 10kb. Se les aplica un parser JSON propio con
+// margen para el PNG (hasta 2 MB binario + overhead base64) sin relajar el resto.
+app.use('/api/aceptaciones', express.json({ limit: '4mb' }), aceptacionRoutes);
 
 // Manejador de rutas no encontradas
 app.use((req, res) => {
