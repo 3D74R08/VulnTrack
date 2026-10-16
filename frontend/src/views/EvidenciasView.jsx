@@ -156,8 +156,10 @@ export default function EvidenciasView() {
               >
                 <option value="">Seleccionar plan...</option>
                 {planes.map(p => (
+                  // El value sigue siendo el UUID (p.id_plan) que espera el backend,
+                  // pero mostramos datos legibles: nombre, codigo del activo y estado del plan.
                   <option key={p.id_plan} value={p.id_plan}>
-                    {p.id_plan} - {p.estado}
+                    {p.nombre} — {p.codigo_activo ?? ''} ({p.estado_plan})
                   </option>
                 ))}
               </select>
