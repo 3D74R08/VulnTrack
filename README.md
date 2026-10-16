@@ -144,7 +144,7 @@ stateDiagram-v2
 
 ## Modelo Relacional de Datos (ERD)
 
-VulnTrack aísla de forma matemática a las empresas utilizando **Políticas RLS en PostgreSQL**. Además, cuenta con una tabla de roles dinámica por inquilino.
+VulnTrack aísla de forma matemática a las empresas utilizando **Políticas RLS en PostgreSQL**: toda tabla de negocio cuelga de `EMPRESAS` mediante `id_empresa`. Además, cuenta con una tabla de roles dinámica por inquilino. Cada activo expone sus hallazgos (relación 1:N vía `id_activo`), y un plan de remediación agrupa una o varias vulnerabilidades a través de la tabla puente `PLAN_VULNERABILIDADES` (M:N), reemplazando el antiguo vínculo 1:1 `planes_remediacion.id_hallazgo`.
 
 ```mermaid
 erDiagram
@@ -152,7 +152,25 @@ erDiagram
     EMPRESAS ||--o{ USUARIOS : contrata
     EMPRESAS ||--o{ ACTIVOS : posee
     EMPRESAS ||--o{ HALLAZGOS_VULN : reporta
-    
+    EMPRESAS ||--o{ PLANES_REMEDIACION : gestiona
+    EMPRESAS ||--o{ EVENTOS_AUDITORIA : registra
+
+    ACTIVOS ||--o{ HALLAZGOS_VULN : "expone (id_activo)"
+    ACTIVOS ||--o{ PLANES_REMEDIACION : "aplica a (id_activo)"
+
+    USUARIOS ||--o{ HALLAZGOS_VULN : "audita (id_auditor)"
+    USUARIOS ||--o{ PLANES_REMEDIACION : "remedia (id_remediador)"
+    USUARIOS ||--o{ EVENTOS_AUDITORIA : "genera (id_usuario)"
+
+    HALLAZGOS_VULN ||--o{ PLAN_VULNERABILIDADES : incluida_en
+    PLANES_REMEDIACION ||--o{ PLAN_VULNERABILIDADES : agrupa
+
+    EMPRESAS {
+        uuid id_empresa PK
+        string nombre_empresa
+        boolean estado
+    }
+
     ROLES_EMPRESA {
         uuid id_rol PK
         uuid id_empresa FK
@@ -166,32 +184,55 @@ erDiagram
         uuid id_empresa FK
         string correo UK
         string password_hash
-        string rol "Solo lectura/Referencia"
         boolean mfa_enabled
         string mfa_secret
         boolean estado
     }
 
+    ACTIVOS {
+        uuid id_activo PK
+        uuid id_empresa FK
+        string codigo_activo "UK por empresa"
+        string tipo
+        string criticidad
+        string estado_activo
+    }
+
     HALLAZGOS_VULN {
         uuid id_hallazgo PK
-        string cve_id "Obligatorio"
+        uuid id_empresa FK
+        uuid id_activo FK "1:N desde ACTIVOS"
+        uuid id_auditor FK
+        string cve_id
         string severidad
         float cvss
-        string estado_hallazgo
+        string estado_hallazgo "DETECTADA|EN_ANALISIS|PLANIFICADA|EN_REMEDIACION|MITIGADA|CORREGIDA|ACEPTADA|FALSO_POSITIVO|CERRADA"
     }
 
     PLANES_REMEDIACION {
-        uuid id PK
-        uuid hallazgo_id FK
-        uuid asignado_a FK
+        uuid id_plan PK
+        uuid id_empresa FK
+        uuid id_activo FK
+        uuid id_remediador FK
+        uuid creado_por FK
+        string nombre
         date fecha_limite
-        string estado "PENDIENTE|EN_CURSO|COMPLETADO|VENCIDO"
+        string estado_plan "PENDIENTE|EN_EJECUCION|COMPLETADO|VENCIDO|CANCELADO"
+    }
+
+    PLAN_VULNERABILIDADES {
+        uuid id_empresa FK
+        uuid id_plan PK "FK"
+        uuid id_hallazgo PK "FK"
+        boolean estado
     }
 
     EVENTOS_AUDITORIA {
         uuid id_evento PK
+        uuid id_empresa FK
         uuid id_usuario FK
         string accion
+        string modulo
         jsonb detalles
         timestamp fecha_evento
     }
