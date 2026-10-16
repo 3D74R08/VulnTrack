@@ -88,6 +88,10 @@ services:
     volumes:
       - logs-data:/app/logs
       - ./backend/src:/app/src
+      # Volumen persistente para las evidencias subidas. Garantiza que los archivos
+      # sobrevivan a recreaciones del contenedor y que el usuario no-root 'node' pueda
+      # escribir en /app/uploads (el dir se crea con ownership node:node en el Dockerfile).
+      - uploads-data:/app/uploads
     networks:
       - securehub_lan
     ports:
@@ -115,3 +119,4 @@ volumes:
   files-data:
   logs-data:
   backups-data:
+  uploads-data:

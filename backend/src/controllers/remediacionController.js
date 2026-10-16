@@ -11,7 +11,10 @@ const { crearPlanAutomatico } = require('../services/remediacionService');
 
 const ESTADOS_PLAN = ['PENDIENTE', 'EN_EJECUCION', 'COMPLETADO', 'VENCIDO', 'CANCELADO'];
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
-const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+// Directorio de subidas configurable por entorno. En produccion (contenedor) apunta a
+// /app/uploads (volumen persistente escribible por 'node'); si no se define UPLOAD_DIR,
+// se usa el directorio 'uploads' relativo a la raiz del backend como fallback local.
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'uploads');
 
 const SELECT_PLAN = `
     SELECT p.*, u.nombre_completo AS responsable, a.codigo_activo, a.nombre AS activo_nombre,

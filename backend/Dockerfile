@@ -8,6 +8,12 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY --chown=node:node src ./src
 
+# Crear el directorio de subidas (evidencias) con ownership del usuario no-root 'node'
+# ANTES del cambio de usuario. Asi, al montar un volumen persistente en /app/uploads,
+# el usuario 'node' tiene permisos de escritura y se evita el error EACCES al crear
+# subcarpetas por empresa. No se vuelve a root: el hardening se mantiene.
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+
 USER node
 
 EXPOSE 3000
