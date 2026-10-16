@@ -15,6 +15,10 @@ const rolesRoutes = require('./routes/rolesRoutes');
 const importacionRoutes = require('./routes/importacionRoutes');
 const notificacionesRoutes = require('./routes/notificacionesRoutes');
 
+// API stateless: la autenticación protegida utiliza JWT en Authorization: Bearer,
+// no cookies de sesión enviadas automáticamente por el navegador.
+// Las peticiones JSON entre orígenes requieren preflight y CORS limita los orígenes.
+// nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage -- CSRF middleware basado en cookies no aplica a este esquema Bearer; reevaluar si se introducen cookies de autenticación.
 const app = express();
 
 // Confianza en el primer proxy (frontend) para que req.ip refleje la IP real del cliente.
@@ -42,13 +46,17 @@ const origenPermitido = (origin) => {
 };
 
 // Swagger Documentation
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocument = require('./swagger.json');
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // 1. Defensas perimetrales
-app.use(helmet()); // Oculta Express y configura cabeceras anti-XSS/Clickjacking
+app.disable('x-powered-by');
+
+// Oculta Express y configura cabeceras anti-XSS/Clickjacking (hardening del companero).
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+}));
+
 // CORS restringido: lista blanca (CORS_ORIGINS) + localhost/LAN privada en desarrollo.
+// Se conserva origenPermitido() del usuario para no romper el login por LAN en dev.
 app.use(cors({
     origin: (origin, cb) => {
         if (origenPermitido(origin)) return cb(null, true);
@@ -56,7 +64,19 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json({ limit: '10kb' })); // Previene ataques DoS por Payload gigante
+
+app.use(express.json({ limit: '10kb' }));
+
+// Swagger Documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
+
+app.get('/api-docs.json', (req, res) => {
+    res.json(swaggerDocument);
+});
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 
 // 2. Ruta de validación de infraestructura
 app.get('/health', async (req, res) => {
@@ -85,6 +105,11 @@ const startSLAWorker = require('./workers/slaWorker');
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`[INFO] API Core levantada en puerto ${PORT}`);
+  console.log(`[INFO] API Core levantada en puerto ${PORT}`);
+
+  if (process.env.DISABLE_BACKGROUND_WORKERS !== 'true') {
     startSLAWorker();
+  } else {
+    console.log('[INFO] Workers desactivados para el entorno de pruebas.');
+  }
 });

@@ -1,0 +1,8 @@
+﻿
+framework:
+  - terraform
+  - dockerfile
+  - yaml
+quiet: false
+compact: true
+soft-fail: false
