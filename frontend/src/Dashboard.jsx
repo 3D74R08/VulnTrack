@@ -11,7 +11,7 @@ import EvidenciasView from './views/EvidenciasView';
 import ReportesView from './views/ReportesView';
 import ImportacionView from './views/ImportacionView';
 import { getUserData } from './utils/auth';
-import { apiGet, apiPost } from './utils/apiClient';
+import { apiGet, apiPost, apiPut } from './utils/apiClient';
 import { UploadCloud, Sun, Moon } from 'lucide-react';
 
 export default function Dashboard({ onLogout }) {
@@ -29,6 +29,7 @@ export default function Dashboard({ onLogout }) {
   
   const [userData, setUserData] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [noLeidas, setNoLeidas] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
@@ -49,11 +50,27 @@ export default function Dashboard({ onLogout }) {
 
   const fetchNotifications = async () => {
     try {
-      const data = await apiGet('/api/auditoria');
-      // Take the latest 5 events as notifications
-      setNotifications(data.slice(0, 5));
+      // La campana consume /api/notificaciones (dirigidas al usuario o a la empresa).
+      const data = await apiGet('/api/notificaciones');
+      setNotifications(data.notificaciones || []);
+      setNoLeidas(data.no_leidas || 0);
     } catch (e) {
       console.error('Error fetching notifications:', e);
+    }
+  };
+
+  // Al abrir el panel se marcan todas como leídas (best-effort, no bloqueante).
+  const toggleNotifications = async () => {
+    const abrir = !showNotifications;
+    setShowNotifications(abrir);
+    if (abrir && noLeidas > 0) {
+      try {
+        await apiPut('/api/notificaciones/leidas');
+        setNoLeidas(0);
+        setNotifications(prev => prev.map(n => ({ ...n, leida: true })));
+      } catch (e) {
+        console.error('Error marcando notificaciones leídas:', e);
+      }
     }
   };
 
@@ -225,13 +242,13 @@ export default function Dashboard({ onLogout }) {
           <div className="flex items-center gap-5">
             <div className="relative">
               <button 
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={toggleNotifications}
                 className="relative text-gray-400 hover:text-gray-600 dark:text-gray-400 transition-colors"
               >
                 <Bell size={20} />
-                {notifications.length > 0 && (
+                {noLeidas > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">
-                    {notifications.length}
+                    {noLeidas}
                   </span>
                 )}
               </button>
@@ -239,17 +256,18 @@ export default function Dashboard({ onLogout }) {
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 z-50">
                   <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Notificaciones (Auditoría)</h3>
+                    <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Notificaciones</h3>
                   </div>
                   <div className="max-h-64 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-500 text-center">No hay actividad reciente</div>
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">No hay notificaciones</div>
                     ) : (
                       notifications.map(notif => (
-                        <div key={notif.id_evento} className="px-4 py-3 border-b border-gray-50 hover:bg-brand-light dark:hover:bg-gray-900 transition-colors">
-                          <p className="text-xs font-semibold text-brand-primary">{notif.modulo}</p>
-                          <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">{notif.accion}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{new Date(notif.fecha_evento).toLocaleString()}</p>
+                        <div key={notif.id_notificacion} className={`px-4 py-3 border-b border-gray-50 hover:bg-brand-light dark:hover:bg-gray-900 transition-colors ${notif.leida ? '' : 'bg-brand-light/60 dark:bg-gray-900/40'}`}>
+                          <p className="text-xs font-semibold text-brand-primary">{notif.tipo}</p>
+                          <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2">{notif.titulo}</p>
+                          {notif.mensaje && <p className="text-xs text-gray-500 line-clamp-2">{notif.mensaje}</p>}
+                          <p className="text-[10px] text-gray-400 mt-1">{notif.fecha ? new Date(notif.fecha).toLocaleString() : ''}</p>
                         </div>
                       ))
                     )}

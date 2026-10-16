@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { queryConRLS } = require('../config/db');
 const { registrarAuditoria } = require('../utils/auditoriaHelper');
 const { crearNotificacion } = require('../utils/notificacionHelper');
+const { enviarCorreo } = require('../services/emailService');
 const { cambiarEstadoVulnerabilidad } = require('../services/vulnerabilidadService');
 // Disponible para flujos que necesiten disparar un plan automatico (FEAT riesgo/remediacion).
 // El flujo manual de crearPlan se mantiene intacto (permite responsable y campos manuales).
@@ -187,6 +188,64 @@ const actualizarPlan = async (req, res) => {
     }
 };
 
+// Bloque B: asignación de responsable de remediación. SOLO ADMINISTRADOR (la ruta ya lo
+// restringe con autorizarRoles). Efectos colaterales: notificación in-app + correo
+// best-effort + auditoría. No reutiliza PUT /:id porque ese endpoint está abierto a
+// REMEDIADOR/ANALISTA_SEGURIDAD y la asignación debe ser exclusiva del administrador.
+const ROLES_REMEDIADOR = ['REMEDIADOR', 'ADMINISTRADOR'];
+
+const asignarRemediador = async (req, res) => {
+    const { id_empresa, id_usuario } = req.usuario;
+    const { id_remediador } = req.body;
+    if (!id_remediador) return res.status(400).json({ error: 'Debe indicar el responsable (id_remediador).' });
+    try {
+        // 1) El responsable debe existir, estar activo en el tenant (RLS) y tener rol apto
+        const u = await queryConRLS(id_empresa,
+            'SELECT id_usuario, correo, rol FROM usuarios WHERE id_usuario = $1 AND estado = TRUE', [id_remediador]);
+        if (u.rows.length === 0 || !ROLES_REMEDIADOR.includes(u.rows[0].rol)) {
+            return res.status(400).json({ error: 'El usuario no puede ser responsable de remediación.' });
+        }
+        const remediador = u.rows[0];
+
+        // 2) Asignar solo si el plan existe y no está cerrado
+        const upd = await queryConRLS(id_empresa,
+            `UPDATE planes_remediacion SET id_remediador = $1
+             WHERE id_plan = $2 AND estado = TRUE AND estado_plan NOT IN ('COMPLETADO','CANCELADO') RETURNING *`,
+            [id_remediador, req.params.id]);
+        if (upd.rows.length === 0) return res.status(404).json({ error: 'Plan no encontrado o ya cerrado.' });
+        const plan = upd.rows[0];
+
+        // 3) Notificación in-app para el remediador (best-effort, no re-lanza)
+        await crearNotificacion(id_empresa, {
+            id_usuario: id_remediador, tipo: 'PLAN_ASIGNADO', titulo: `Se te asignó el plan "${plan.nombre}"`,
+            mensaje: `Fecha límite: ${plan.fecha_limite ? new Date(plan.fecha_limite).toLocaleDateString('es-CO') : 'sin definir'}`,
+            recurso: 'plan', id_recurso: plan.id_plan
+        });
+
+        // 4) Correo best-effort: enviarCorreo captura su propio error y devuelve {ok:false};
+        //    se ignora el resultado para no alterar el código de respuesta.
+        if (remediador.correo) {
+            const asunto = `Plan de remediación asignado: ${plan.nombre}`;
+            const html = `<p>Se te ha asignado el plan de remediación <strong>${plan.nombre}</strong>.</p>` +
+                `<p>Fecha límite: ${plan.fecha_limite ? new Date(plan.fecha_limite).toLocaleDateString('es-CO') : 'sin definir'}</p>` +
+                `<p>Ingresa a VulnTrack para revisar el plan de acción y las tareas a realizar.</p>`;
+            await enviarCorreo(remediador.correo, asunto, html);
+        }
+
+        // 5) Auditoría del evento
+        await registrarAuditoria(id_empresa, id_usuario, 'REMEDIATION_ASSIGNED', 'Remediación',
+            { plan: plan.nombre, id_remediador }, req.ip,
+            { recurso: 'plan', id_recurso: plan.id_plan, descripcion: `Plan "${plan.nombre}" asignado al remediador ${id_remediador}` });
+
+        // 6) Responder re-consultando con SELECT_PLAN para devolver el responsable resuelto
+        const r = await queryConRLS(id_empresa, `${SELECT_PLAN} WHERE p.id_plan = $1 AND p.estado = TRUE`, [plan.id_plan]);
+        res.status(200).json(r.rows[0]);
+    } catch (error) {
+        console.error('[ERROR ASIGNAR REMEDIADOR]:', error.message);
+        res.status(500).json({ error: 'Error al asignar el responsable del plan.' });
+    }
+};
+
 // Sección 34: evidencias (comentario técnico y/o archivo)
 const agregarEvidencia = async (req, res) => {
     const { id_empresa, id_usuario } = req.usuario;
@@ -236,4 +295,4 @@ const descargarEvidencia = async (req, res) => {
     }
 };
 
-module.exports = { crearPlan, obtenerPlanes, obtenerPlanPorId, cambiarEstadoPlan, actualizarPlan, agregarEvidencia, descargarEvidencia };
+module.exports = { crearPlan, obtenerPlanes, obtenerPlanPorId, cambiarEstadoPlan, actualizarPlan, asignarRemediador, agregarEvidencia, descargarEvidencia };

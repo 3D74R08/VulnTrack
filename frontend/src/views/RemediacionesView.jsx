@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Plus, Search, Filter, X, ShieldCheck, Clock, FileText, Activity, Target } from 'lucide-react';
-import { tienePermiso } from '../utils/auth';
+import { tienePermiso, getUserData } from '../utils/auth';
 import { apiGet, apiPost, apiPatch } from '../utils/apiClient';
 
 export default function RemediacionesView() {
@@ -14,6 +14,7 @@ export default function RemediacionesView() {
   const [searchTerm, setSearchTerm] = useState('');
     const [filtroActivo, setFiltroActivo] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS');
+  const [soloMisPlanes, setSoloMisPlanes] = useState(false);
   
   const [formData, setFormData] = useState({
     nombre: '',
@@ -106,13 +107,30 @@ export default function RemediacionesView() {
     }
   };
 
+  // Filtro "Mis planes": client-side, SELECT_PLAN ya devuelve id_remediador (p.*).
+  const miId = getUserData()?.id_usuario;
+
   const filteredPlanes = planes.filter(plan => {
     const matchStatus = statusFilter === 'TODOS' || plan.estado_plan === statusFilter;
     const term = searchTerm.toLowerCase();
     const matchSearch = (plan.nombre || '').toLowerCase().includes(term) || 
                         (plan.plan_accion || '').toLowerCase().includes(term);
-    return matchStatus && matchSearch;
+    const matchMios = !soloMisPlanes || plan.id_remediador === miId;
+    return matchStatus && matchSearch && matchMios;
   });
+
+  // Responsables elegibles para asignación (mismo criterio que el backend).
+  const asignables = usuarios.filter(u => ['REMEDIADOR', 'ADMINISTRADOR'].includes(u.rol));
+
+  const handleAsignarRemediador = async (id_plan, id_remediador) => {
+    try {
+      await apiPatch('/api/remediacion/' + id_plan + '/asignar', { id_remediador });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Error al asignar el responsable.');
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -163,6 +181,15 @@ export default function RemediacionesView() {
               <option value="VENCIDO">Vencido</option>
               <option value="CANCELADO">Cancelado</option>
             </select>
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={soloMisPlanes}
+                onChange={(e) => setSoloMisPlanes(e.target.checked)}
+                className="w-4 h-4 text-brand-primary border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary"
+              />
+              Mis planes
+            </label>
           </div>
         </div>
 
@@ -290,6 +317,23 @@ export default function RemediacionesView() {
                                      <option value="CANCELADO">Cancelado</option>
                                    </select>
                                  </div>
+
+                                 {tienePermiso('ADMINISTRADOR') && (
+                                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                     <h4 className="font-bold mb-3 text-gray-800 dark:text-gray-200 text-sm flex items-center gap-2">Asignar responsable</h4>
+                                     <p className="text-xs text-gray-500 mb-2">Solo el administrador puede asignar o reasignar al remediador del plan.</p>
+                                     <select
+                                       className="border border-gray-300 dark:border-gray-600 rounded p-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                       value={plan.id_remediador || ''}
+                                       onChange={(e) => handleAsignarRemediador(plan.id_plan, e.target.value)}
+                                     >
+                                       <option value="" disabled>Sin Asignar</option>
+                                       {asignables.map(u => (
+                                         <option key={u.id_usuario} value={u.id_usuario}>{u.nombre_completo} ({u.rol})</option>
+                                       ))}
+                                     </select>
+                                   </div>
+                                 )}
 
                                  </div>
 
