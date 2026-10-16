@@ -292,7 +292,14 @@ export default function RemediacionesView() {
                                  </div>
 
                                  </div>
+
+                               <div className="col-span-2 mt-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                 <h4 className="font-bold mb-3 text-gray-800 dark:text-gray-200 border-b pb-2 flex items-center gap-2"><FileText size={16}/> Plan de acción</h4>
+                                 <pre className="whitespace-pre-wrap break-words font-sans text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded border p-4">
+{expandedPlanData.plan_accion || 'Sin plan de acción registrado.'}
+                                 </pre>
                                </div>
+                             </div>
                           ) : ( <div className="text-center text-gray-500 py-6">Cargando detalles...</div> )}
                         </td>
                       </tr>

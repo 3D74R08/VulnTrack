@@ -40,4 +40,36 @@ const queryConRLS = async (idEmpresa, query, params = []) => {
     }
 };
 
-module.exports = { pool, queryConRLS };
+/**
+ * Ejecuta varias escrituras dentro de UNA sola transaccion compartiendo el
+ * contexto RLS del tenant (patron multi-escritura atomica). A diferencia de
+ * queryConRLS, abre un unico BEGIN/COMMIT y expone un ejecutor `exec` para que
+ * todas las sentencias de `fn` corran sobre el mismo client. Si `fn` lanza, se
+ * hace ROLLBACK y se re-lanza el error.
+ *
+ * @param {string} idEmpresa - UUID del tenant extraido del JWT.
+ * @param {(exec: (sql: string, params?: Array) => Promise) => Promise} fn - Logica de negocio.
+ * @returns {Promise} el valor devuelto por `fn`.
+ */
+const conTransaccionRLS = async (idEmpresa, fn) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Habilitar RLS inyectando la variable de sesion (is_local=true requiere BEGIN/COMMIT).
+        await client.query(`SELECT set_config('app.current_tenant', $1, true)`, [idEmpresa]);
+        // Ejecutor compartido: todas las queries de `fn` corren sobre el mismo client/transaccion.
+        const exec = (sql, params = []) => client.query(sql, params);
+        const resultado = await fn(exec);
+        await client.query('COMMIT');
+        return resultado;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("[ERROR BD]:", error.message);
+        throw error;
+    } finally {
+        // Obligatorio: liberar el cliente al pool para evitar fugas de memoria.
+        client.release();
+    }
+};
+
+module.exports = { pool, queryConRLS, conTransaccionRLS };
