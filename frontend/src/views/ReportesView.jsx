@@ -7,9 +7,23 @@ import {
   AlertTriangle, 
   CheckCircle,
   BarChart,
-  ChevronRight
+  FileDown,
+  FileType
 } from 'lucide-react';
 import { apiGet } from '../utils/apiClient';
+import { getUserData } from '../utils/auth';
+import { descargarMarkdown, descargarPdf } from '../utils/documentos';
+
+// Calculo cliente de estado SLA (misma logica que getSLAInfo de RemediacionesView):
+// un plan con fecha_limite pasada y estado abierto cuenta como vencido.
+const esEstadoAbierto = (estado) => !['COMPLETADO', 'CANCELADO'].includes(estado);
+const calcularSLA = (fecha_limite, estado_plan) => {
+  if (!fecha_limite) return 'Sin fecha';
+  const limite = new Date(fecha_limite);
+  const hoy = new Date();
+  const vencido = limite < hoy && esEstadoAbierto(estado_plan);
+  return vencido ? 'Vencido' : 'A tiempo';
+};
 
 export default function ReportesView() {
   const [activeTab, setActiveTab] = useState('ejecutivos');
@@ -87,6 +101,193 @@ export default function ReportesView() {
       setReportData({ error: error.message || 'No se pudo cargar la información del reporte.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Encabezado comun: quien genera + fecha. El nombre de empresa NO esta en el
+  // JWT, por eso el encabezado de los reportes usa nombre_completo del usuario.
+  const encabezadoComun = () => {
+    const usuario = getUserData();
+    const nombre = usuario?.nombre_completo || 'Usuario';
+    return `Generado por: ${nombre} - ${new Date().toLocaleString('es-CO')}`;
+  };
+
+  // Obtiene los datos del reporte respetando el filtro selectedActivo para los
+  // endpoints que lo aceptan (metricas, hallazgos, remediacion).
+  const obtenerDatosReporte = async (report) => {
+    const aceptaActivo = ['ejecutivo', 'vulnerabilidades', 'sla'].includes(report.id);
+    const url = (aceptaActivo && selectedActivo)
+      ? `${report.endpoint}?id_activo=${selectedActivo}`
+      : report.endpoint;
+    return apiGet(url);
+  };
+
+  // Arma { titulo, md, pdf } para un reporte dado a partir de sus datos.
+  // pdf es la estructura { titulo, fecha, secciones[] } que consume descargarPdf.
+  const construirContenido = (report, data) => {
+    const encabezado = encabezadoComun();
+    const titulo = report.title;
+
+    if (report.id === 'ejecutivo') {
+      const metricas = data || {};
+      const totalActivos = metricas.metricas_generales?.total_activos ?? 'N/D';
+      const porSeveridad = metricas.graficas?.hallazgos_severidad || [];
+      const porEstadoPlan = metricas.graficas?.estado_remediacion || [];
+      const alertas = metricas.alertas_recientes || [];
+
+      const md = `# ${titulo}\n\n${encabezado}\n\n` +
+        `## Resumen\n- Total de activos: ${totalActivos}\n\n` +
+        `## Hallazgos por severidad\n` +
+        (porSeveridad.length
+          ? porSeveridad.map(s => `- ${s.severidad}: ${s.cantidad}`).join('\n')
+          : '_Sin datos_') + `\n\n` +
+        `## Planes por estado\n` +
+        (porEstadoPlan.length
+          ? porEstadoPlan.map(e => `- ${e.estado_plan}: ${e.cantidad}`).join('\n')
+          : '_Sin datos_') + `\n\n` +
+        `## Alertas recientes\n` +
+        (alertas.length
+          ? alertas.map(a => `- ${a.titulo || a.cve_id || JSON.stringify(a)}`).join('\n')
+          : '_Sin datos_') + `\n`;
+
+      const pdf = {
+        titulo,
+        fecha: encabezado,
+        secciones: [
+          { encabezado: 'Resumen', parrafos: [`Total de activos: ${totalActivos}`] },
+          {
+            encabezado: 'Hallazgos por severidad',
+            tabla: porSeveridad.length
+              ? { columnas: ['Severidad', 'Cantidad'], filas: porSeveridad.map(s => [s.severidad, s.cantidad]) }
+              : undefined,
+            parrafos: porSeveridad.length ? [] : ['Sin datos']
+          },
+          {
+            encabezado: 'Planes por estado',
+            tabla: porEstadoPlan.length
+              ? { columnas: ['Estado', 'Cantidad'], filas: porEstadoPlan.map(e => [e.estado_plan, e.cantidad]) }
+              : undefined,
+            parrafos: porEstadoPlan.length ? [] : ['Sin datos']
+          },
+          {
+            encabezado: 'Alertas recientes',
+            parrafos: alertas.length
+              ? alertas.map(a => `- ${a.titulo || a.cve_id || JSON.stringify(a)}`)
+              : ['Sin datos']
+          }
+        ]
+      };
+      return { titulo, md, pdf };
+    }
+
+    if (report.id === 'vulnerabilidades') {
+      const filas = Array.isArray(data) ? data : [];
+      const columnas = ['CVE', 'Activo', 'Severidad', 'CVSS', 'Estado'];
+      const filasTabla = filas.map(h => [
+        h.cve_id || 'N/D',
+        h.activo_nombre || 'N/D',
+        h.severidad || 'N/D',
+        h.cvss != null ? h.cvss : 'N/D',
+        h.estado_hallazgo || 'N/D'
+      ]);
+      const md = `# ${titulo}\n\n${encabezado}\n\n` +
+        (filasTabla.length
+          ? `| ${columnas.join(' | ')} |\n| ${columnas.map(() => '---').join(' | ')} |\n` +
+            filasTabla.map(f => `| ${f.join(' | ')} |`).join('\n') + '\n'
+          : '_Sin datos_\n');
+      const pdf = {
+        titulo,
+        fecha: encabezado,
+        secciones: [{
+          encabezado: 'Vulnerabilidades',
+          tabla: filasTabla.length ? { columnas, filas: filasTabla } : undefined,
+          parrafos: filasTabla.length ? [] : ['Sin datos']
+        }]
+      };
+      return { titulo, md, pdf };
+    }
+
+    if (report.id === 'riesgos') {
+      const filas = Array.isArray(data) ? data : [];
+      const columnas = ['CVE', 'Activo', 'Probabilidad', 'Impacto', 'Puntaje', 'Clasificacion', 'Evaluador'];
+      const filasTabla = filas.map(r => [
+        r.cve_id || 'N/D',
+        r.activo || r.activo_nombre || 'N/D',
+        r.probabilidad != null ? r.probabilidad : 'N/D',
+        r.impacto != null ? r.impacto : 'N/D',
+        r.puntaje != null ? r.puntaje : 'N/D',
+        r.clasificacion || 'N/D',
+        r.evaluador || 'N/D'
+      ]);
+      const md = `# ${titulo}\n\n${encabezado}\n\n` +
+        (filasTabla.length
+          ? `| ${columnas.join(' | ')} |\n| ${columnas.map(() => '---').join(' | ')} |\n` +
+            filasTabla.map(f => `| ${f.join(' | ')} |`).join('\n') + '\n'
+          : '_Sin datos_\n');
+      const pdf = {
+        titulo,
+        fecha: encabezado,
+        secciones: [{
+          encabezado: 'Riesgos',
+          tabla: filasTabla.length ? { columnas, filas: filasTabla } : undefined,
+          parrafos: filasTabla.length ? [] : ['Sin datos']
+        }]
+      };
+      return { titulo, md, pdf };
+    }
+
+    // SLA
+    const filas = Array.isArray(data) ? data : [];
+    const columnas = ['Nombre', 'Prioridad', 'Fecha limite', 'Estado', 'Responsable', 'SLA'];
+    const filasTabla = filas.map(p => [
+      p.nombre || 'N/D',
+      p.prioridad || 'N/D',
+      p.fecha_limite ? new Date(p.fecha_limite).toLocaleDateString('es-CO') : 'N/D',
+      p.estado_plan || 'N/D',
+      p.responsable || 'Sin Asignar',
+      calcularSLA(p.fecha_limite, p.estado_plan)
+    ]);
+    const md = `# ${titulo}\n\n${encabezado}\n\n` +
+      (filasTabla.length
+        ? `| ${columnas.join(' | ')} |\n| ${columnas.map(() => '---').join(' | ')} |\n` +
+          filasTabla.map(f => `| ${f.join(' | ')} |`).join('\n') + '\n'
+        : '_Sin datos_\n');
+    const pdf = {
+      titulo,
+      fecha: encabezado,
+      secciones: [{
+        encabezado: 'Cumplimiento SLA',
+        tabla: filasTabla.length ? { columnas, filas: filasTabla } : undefined,
+        parrafos: filasTabla.length ? [] : ['Sin datos']
+      }]
+    };
+    return { titulo, md, pdf };
+  };
+
+  // Descarga Markdown de un reporte: obtiene datos frescos (respetando el
+  // filtro) y arma el .md por tipo.
+  const handleDescargarMarkdown = async (report, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const data = await obtenerDatosReporte(report);
+      const { titulo, md } = construirContenido(report, data);
+      descargarMarkdown(titulo, md);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'No se pudo generar el reporte en Markdown.');
+    }
+  };
+
+  // Exporta un reporte a PDF con jsPDF.
+  const handleExportarPdf = async (report, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const data = await obtenerDatosReporte(report);
+      const { titulo, pdf } = construirContenido(report, data);
+      descargarPdf(titulo, pdf);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'No se pudo exportar el reporte a PDF.');
     }
   };
 
@@ -179,9 +380,26 @@ export default function ReportesView() {
                     <p className="text-sm text-gray-500 mt-1">{report.description}</p>
                   </div>
                 </div>
-                <div className="text-gray-400 hover:text-brand-primary bg-brand-light dark:bg-gray-900 p-2 rounded-full">
+                <div className="text-gray-400 bg-brand-light dark:bg-gray-900 p-2 rounded-full">
                   <Download className="w-5 h-5" />
                 </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={(e) => handleDescargarMarkdown(report, e)}
+                  className="flex items-center text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-brand-primary hover:text-brand-primary transition-colors"
+                >
+                  <FileDown className="w-4 h-4 mr-1.5" />
+                  Descargar Markdown
+                </button>
+                <button
+                  onClick={(e) => handleExportarPdf(report, e)}
+                  className="flex items-center text-sm px-3 py-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-secondary transition-colors"
+                >
+                  <FileType className="w-4 h-4 mr-1.5" />
+                  Exportar a PDF
+                </button>
               </div>
             </div>
           );
@@ -195,9 +413,12 @@ export default function ReportesView() {
               <selectedReport.icon className={`w-5 h-5 mr-2 ${selectedReport.iconColor}`} />
               Vista Previa: {selectedReport.title}
             </h3>
-            <button className="text-sm text-brand-primary font-medium hover:text-brand-secondary flex items-center">
+            <button
+              onClick={() => handleExportarPdf(selectedReport)}
+              className="text-sm text-brand-primary font-medium hover:text-brand-secondary flex items-center"
+            >
               Exportar a PDF
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <FileType className="w-4 h-4 ml-1" />
             </button>
           </div>
           
