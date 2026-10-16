@@ -5,6 +5,9 @@ const { queryConRLS } = require('../config/db');
 const { registrarAuditoria } = require('../utils/auditoriaHelper');
 const { crearNotificacion } = require('../utils/notificacionHelper');
 const { cambiarEstadoVulnerabilidad } = require('../services/vulnerabilidadService');
+// Disponible para flujos que necesiten disparar un plan automatico (FEAT riesgo/remediacion).
+// El flujo manual de crearPlan se mantiene intacto (permite responsable y campos manuales).
+const { crearPlanAutomatico } = require('../services/remediacionService');
 
 const ESTADOS_PLAN = ['PENDIENTE', 'EN_EJECUCION', 'COMPLETADO', 'VENCIDO', 'CANCELADO'];
 const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];

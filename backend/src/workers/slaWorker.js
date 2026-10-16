@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { pool } = require('../config/db');
 const { consultarCve } = require('../services/nvdService');
 const { enviarCorreo } = require('../services/emailService');
+const { evaluarRiesgoAutomatico } = require('../services/riesgoService');
 
 const conBypass = async (fn) => {
     const client = await pool.connect();
@@ -87,6 +88,18 @@ const reintentarNVD = async () => {
                      WHERE id_hallazgo=$6 AND id_empresa=$7`,
                     [nvd.descripcion, nvd.cvss, nvd.severidad, nvd.fecha_publicacion, JSON.stringify(nvd.referencias), v.id_hallazgo, v.id_empresa]);
                 ok++;
+
+                // Enganche riesgo/remediacion: al completar NVD, recalcular el riesgo y, si resulta
+                // ALTA/CRITICA, disparar el plan automatico. Se reutiliza evaluarRiesgoAutomatico con un
+                // 'exec' que usa el client BYPASS en curso -> todo queda en la MISMA transaccion.
+                const crit = await c.query(
+                    `SELECT a.criticidad FROM activos a
+                     JOIN hallazgos_vuln h ON h.id_activo = a.id_activo
+                     WHERE h.id_hallazgo = $1 AND a.id_empresa = $2`, [v.id_hallazgo, v.id_empresa]);
+                const criticidad = crit.rows[0]?.criticidad || 'BAJA';
+                const execBypass = (sql, params) => c.query(sql, params);
+                await evaluarRiesgoAutomatico(v.id_empresa, null, v.id_hallazgo,
+                    { cvss: nvd.cvss, criticidad, severidad: nvd.severidad }, { exec: execBypass });
             } else {
                 const final = nvd.motivo === 'NO_ENCONTRADO' ? 'NO_ENCONTRADO' : 'PENDIENTE';
                 await c.query(`UPDATE hallazgos_vuln SET intentos_nvd = intentos_nvd + 1, estado_enriquecimiento = $1

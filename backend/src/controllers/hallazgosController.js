@@ -2,6 +2,7 @@ const { queryConRLS } = require('../config/db');
 const { registrarAuditoria } = require('../utils/auditoriaHelper');
 const { consultarCve } = require('../services/nvdService');
 const { crearVulnerabilidad, cambiarEstadoVulnerabilidad, ErrorNegocio } = require('../services/vulnerabilidadService');
+const { evaluarRiesgoAutomatico } = require('../services/riesgoService');
 
 const manejarError = (res, error, contexto) => {
     if (error instanceof ErrorNegocio) return res.status(error.codigo).json({ error: error.message });
@@ -120,6 +121,18 @@ const reenriquecer = async (req, res) => {
                     referencias = $5, estado_enriquecimiento = 'COMPLETADO', intentos_nvd = intentos_nvd + 1, fecha_actualizacion = NOW()
              WHERE id_hallazgo = $6 RETURNING *`,
             [nvd.descripcion, nvd.cvss, nvd.severidad, nvd.fecha_publicacion, JSON.stringify(nvd.referencias), req.params.id]);
+
+        // Enganche riesgo/remediacion: tras completar NVD manualmente, recalcular el riesgo
+        // (archivando la evaluacion vigente) y, si resulta ALTA/CRITICA, disparar el plan automatico.
+        // Se usa el ejecutor por defecto (queryConRLS, tenant normal).
+        const crit = await queryConRLS(id_empresa,
+            `SELECT a.criticidad FROM activos a
+             JOIN hallazgos_vuln h ON h.id_activo = a.id_activo
+             WHERE h.id_hallazgo = $1`, [req.params.id]);
+        const criticidad = crit.rows[0]?.criticidad || 'BAJA';
+        await evaluarRiesgoAutomatico(id_empresa, id_usuario, req.params.id,
+            { cvss: nvd.cvss, criticidad, severidad: nvd.severidad });
+
         await registrarAuditoria(id_empresa, id_usuario, 'VULNERABILITY_UPDATED', 'Vulnerabilidades',
             { cve_id: v.rows[0].cve_id, enriquecimiento: 'NVD' }, req.ip, { recurso: 'vulnerabilidad', id_recurso: req.params.id });
         res.status(200).json(r.rows[0]);
