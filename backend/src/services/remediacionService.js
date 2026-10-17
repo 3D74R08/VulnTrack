@@ -95,6 +95,15 @@ ${bloqueReferencias}`;
 const crearPlanAutomatico = async (id_empresa, id_usuario, datos, opciones = {}) => {
     const exec = opciones.exec || ((sql, params) => queryConRLS(id_empresa, sql, params));
 
+    // Candado para serializar llamadas concurrentes sobre el MISMO hallazgo (backfill + disparo
+    // del worker) y evitar la carrera que creaba planes abiertos duplicados. El lock se libera
+    // automaticamente al cerrar la transaccion (pg_advisory_xact_lock). La garantia plena aplica
+    // cuando el llamador inyecta un exec transaccional (worker/backfill con conBypass o
+    // conTransaccionRLS); con queryConRLS por defecto cada query abre su propia transaccion, por
+    // lo que el lock se suelta de inmediato y el SELECT de idempotencia de abajo sigue siendo la
+    // defensa base contra duplicados.
+    await exec('SELECT pg_advisory_xact_lock(hashtext($1))', [datos.id_hallazgo]);
+
     // Idempotencia: no crear si ya hay un plan abierto que cubra este hallazgo.
     const abierto = await exec(
         `SELECT 1 FROM plan_vulnerabilidades pv

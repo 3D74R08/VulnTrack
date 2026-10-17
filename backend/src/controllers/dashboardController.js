@@ -36,8 +36,11 @@ const obtenerMetricas = async (req, res) => {
         );
         const planesPorEstado = remediacionRes.rows;
 
+        // La severidad vive en ESPANOL desde la migracion v3 (CHECK: 'BAJA','MEDIA','ALTA','CRITICA','NINGUNA').
+        // Antes se filtraba con los valores en ingles ('CRITICAL'/'HIGH'), que nunca coinciden,
+        // por lo que alertas_recientes salia siempre vacio. Se filtra con los valores en espanol.
         const topHallazgosRes = await queryConRLS(id_empresa, 
-            'SELECT titulo, severidad, estado_hallazgo, fecha_descubrimiento FROM hallazgos_vuln WHERE estado = TRUE AND (severidad = \'CRITICAL\' OR severidad = \'HIGH\') ' + activoFilterHallazgos + ' ORDER BY fecha_descubrimiento DESC LIMIT 5', paramsHallazgos
+            'SELECT titulo, severidad, estado_hallazgo, fecha_descubrimiento FROM hallazgos_vuln WHERE estado = TRUE AND severidad IN (\'CRITICA\',\'ALTA\') ' + activoFilterHallazgos + ' ORDER BY fecha_descubrimiento DESC LIMIT 5', paramsHallazgos
         );
         const alertasRecientes = topHallazgosRes.rows;
 
