@@ -35,3 +35,14 @@ backend-audit.json
 *.tfplan
 crash.log
 crash.*.log
+
+# Artefactos internos de Kiro y de los workflows (NO son parte del proyecto)
+.agents/
+.kiro/
+
+# Archivos temporales/basura que no deben versionarse
+_cleanup_done.txt
+*.phase*-backup
+*.backup-*
+securehub-*.dump
+backend/zap-reports/
