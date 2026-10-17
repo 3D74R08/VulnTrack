@@ -66,7 +66,16 @@ app.use(cors({
     credentials: true,
 }));
 
-app.use(express.json({ limit: '10kb' }));
+// Parser JSON global con limite estricto de 10kb para toda la API, EXCEPTO
+// /api/aceptaciones: esa ruta recibe la firma como dataURL PNG en base64 y usa su
+// propio parser de 4mb montado mas abajo. Si el parser global de 10kb corriera
+// tambien sobre /api/aceptaciones, consumiria el stream primero y devolveria 413
+// antes de que el parser de 4mb tuviera oportunidad; por eso se omite esa ruta aqui.
+const jsonGlobal = express.json({ limit: '10kb' });
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/aceptaciones')) return next();
+    return jsonGlobal(req, res, next);
+});
 
 // Swagger Documentation
 const swaggerUi = require('swagger-ui-express');
