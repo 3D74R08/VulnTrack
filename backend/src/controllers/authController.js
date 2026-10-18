@@ -28,6 +28,18 @@ const registrar = async (req, res) => {
         );
         const id_empresa = empresaResult.rows[0].id_empresa;
 
+        // Semilla de roles por empresa al registrar (mejora de infra del companero):
+        // la nueva empresa arranca con su catalogo ADMINISTRADOR/AUDITOR/REMEDIADOR.
+        await client.query(
+            `INSERT INTO roles_empresa (id_empresa, nombre, descripcion, permisos) VALUES
+                ($1, 'ADMINISTRADOR', 'Acceso total al sistema', '["ALL"]'::jsonb),
+                ($1, 'AUDITOR', 'Consulta y registro de vulnerabilidades',
+                    '["VER_ACTIVOS", "VER_VULN", "CREAR_VULN", "VER_RIESGOS"]'::jsonb),
+                ($1, 'REMEDIADOR', 'Gestion de planes de remediacion',
+                    '["VER_ACTIVOS", "VER_VULN", "GESTIONAR_REMEDIACION"]'::jsonb)`,
+            [id_empresa]
+        );
+
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
