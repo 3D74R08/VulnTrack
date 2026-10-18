@@ -30,6 +30,11 @@ CREATE TABLE usuarios (
     nombre_completo VARCHAR(100) NOT NULL,
     correo VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    -- Rol del usuario: su valor coincide con roles_empresa.nombre para resolver permisos
+    -- en el login (authController cruza usuarios.rol con roles_empresa.nombre). El registro
+    -- inserta 'ADMINISTRADOR' para el primer usuario de la empresa; el DEFAULT es defensa
+    -- en profundidad para filas sembradas/manuales.
+    rol VARCHAR(30) NOT NULL DEFAULT 'ADMINISTRADOR',
     mfa_secret VARCHAR(255),
     mfa_enabled BOOLEAN DEFAULT FALSE,
     estado BOOLEAN DEFAULT TRUE, -- SOFT DELETE
