@@ -113,7 +113,11 @@ const reintentarNVD = async () => {
 
 let nvdEnCurso = false;
 const startSLAWorker = () => {
-    cron.schedule(process.env.SLA_CRON_SCHEDULE || '* * * * *', async () => {
+    // Se acumulan los cron jobs para poder detenerlos en un apagado ordenado
+    // (patron del worker separado del companero: worker.js usa la funcion de parada).
+    const jobs = [];
+
+    jobs.push(cron.schedule(process.env.SLA_CRON_SCHEDULE || '* * * * *', async () => {
         try {
             const vencidos = await revisarVencimientos();
             const proximos = await revisarProximos();
@@ -121,9 +125,9 @@ const startSLAWorker = () => {
         } catch (e) {
             console.error('[WORKER SLA] Error:', e.message);
         }
-    });
+    }));
 
-    cron.schedule('*/5 * * * *', async () => {
+    jobs.push(cron.schedule('*/5 * * * *', async () => {
         if (nvdEnCurso) return;
         nvdEnCurso = true;
         try {
@@ -134,8 +138,11 @@ const startSLAWorker = () => {
         } finally {
             nvdEnCurso = false;
         }
-    });
+    }));
     console.log('[WORKER] Monitor de SLA y reintentos NVD inicializado.');
+
+    // Funcion de parada para el shutdown limpio del worker separado.
+    return () => jobs.forEach(j => j.stop());
 };
 
 module.exports = startSLAWorker;
