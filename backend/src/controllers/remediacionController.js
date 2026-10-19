@@ -285,7 +285,7 @@ const descargarEvidencia = async (req, res) => {
     try {
         // RLS impide descargar evidencias de otro tenant aunque se adivine el id
         const r = await queryConRLS(id_empresa,
-            'SELECT ruta_archivo, nombre_archivo FROM evidencias WHERE id_evidencia = $1 AND estado = TRUE', [req.params.idEvidencia]);
+            'SELECT ruta_archivo, nombre_archivo FROM evidencias WHERE id_evidencia = $1 AND estado = TRUE', [req.params.id_evidencia]);
         if (r.rows.length === 0 || !r.rows[0].ruta_archivo) return res.status(404).json({ error: 'Archivo no encontrado.' });
         const abs = path.resolve(UPLOAD_DIR, r.rows[0].ruta_archivo);
         if (!abs.startsWith(path.resolve(UPLOAD_DIR)) || !fs.existsSync(abs)) return res.status(404).json({ error: 'Archivo no encontrado.' });

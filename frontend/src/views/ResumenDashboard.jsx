@@ -81,11 +81,22 @@ export default function ResumenDashboard() {
       let medias = 0;
       let bajas = 0;
 
+      // Estados reales del esquema (en español, tras las migraciones v2/v3) mapeados a
+      // las tres categorías del gráfico de dona:
+      //  - Abiertas (aún sin plan): DETECTADA, EN_ANALISIS
+      //  - En proceso (con plan/remediación en curso): PLANIFICADA, EN_REMEDIACION
+      //  - Cerradas (resueltas o descartadas): MITIGADA, CORREGIDA, CERRADA, ACEPTADA, FALSO_POSITIVO
+      const ABIERTAS = ['DETECTADA', 'EN_ANALISIS'];
+      const EN_PROCESO = ['PLANIFICADA', 'EN_REMEDIACION'];
+      const CERRADAS = ['MITIGADA', 'CORREGIDA', 'CERRADA', 'ACEPTADA', 'FALSO_POSITIVO'];
+
       let estadoCounts = { ABIERTO: 0, EN_PROCESO: 0, CERRADO: 0 };
 
       if (Array.isArray(hallazgos)) {
         hallazgos.forEach(h => {
-          if (h.estado_hallazgo === 'ABIERTO' || h.estado_hallazgo === 'EN_PROCESO') {
+          const estado = h.estado_hallazgo;
+          // "Abiertas" en la métrica superior = todo lo que aún no está cerrado/descartado.
+          if (!CERRADAS.includes(estado)) {
             abiertas++;
           }
           if (h.severidad === 'CRITICA') criticas++;
@@ -93,9 +104,9 @@ export default function ResumenDashboard() {
           if (h.severidad === 'MEDIA') medias++;
           if (h.severidad === 'BAJA') bajas++;
 
-          if (h.estado_hallazgo === 'ABIERTO') estadoCounts.ABIERTO++;
-          if (h.estado_hallazgo === 'EN_PROCESO') estadoCounts.EN_PROCESO++;
-          if (h.estado_hallazgo === 'CERRADO' || h.estado_hallazgo === 'MITIGADO') estadoCounts.CERRADO++;
+          if (ABIERTAS.includes(estado)) estadoCounts.ABIERTO++;
+          else if (EN_PROCESO.includes(estado)) estadoCounts.EN_PROCESO++;
+          else if (CERRADAS.includes(estado)) estadoCounts.CERRADO++;
         });
       }
 

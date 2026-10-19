@@ -1,0 +1,4 @@
+REEMPLAZAR_CON_EL_TOKEN_DEL_BOT_DE_TELEGRAM
+# Copie este archivo a telegram-token.txt (sin .example) y ponga en la PRIMERA linea
+# el token del bot de Telegram (formato 123456789:ABC...). NO lo versione: el archivo
+# real telegram-token.txt esta en .gitignore. Alertmanager lo lee via bot_token_file.

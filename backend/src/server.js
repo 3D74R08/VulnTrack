@@ -1,6 +1,26 @@
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
+const promClient = require('@prometheus-io/client');
+
+// Registro de metricas Prometheus (observabilidad aportada por la infra del companero).
+const metricsRegistry = new promClient.Registry();
+promClient.collectDefaultMetrics({ register: metricsRegistry });
+
+const httpRequestsTotal = new promClient.Counter({
+    name: 'vulntrack_http_requests_total',
+    help: 'Total de peticiones HTTP recibidas',
+    labelNames: ['method', 'route', 'status_code'],
+    registers: [metricsRegistry],
+});
+
+const httpRequestDuration = new promClient.Histogram({
+    name: 'vulntrack_http_request_duration_seconds',
+    help: 'Duracion de las peticiones HTTP en segundos',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
+    registers: [metricsRegistry],
+});
 
 // importacion de rutas auth y negocio
 const authRoutes = require('./routes/authRoutes');
@@ -87,10 +107,47 @@ app.get('/api-docs.json', (req, res) => {
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
+// Middleware de observabilidad: mide volumen y latencia de las peticiones HTTP.
+// Se exenta /metrics para no contabilizar el propio scrape de Prometheus.
+app.use((req, res, next) => {
+    if (req.path === '/metrics') return next();
+
+    const start = process.hrtime.bigint();
+    const route = req.path.startsWith('/api/')
+        ? req.path.split('/').slice(0, 3).join('/')
+        : req.path;
+
+    res.once('finish', () => {
+        const labels = {
+            method: req.method,
+            route,
+            status_code: String(res.statusCode),
+        };
+
+        httpRequestsTotal.inc(labels);
+        httpRequestDuration.observe(
+            labels,
+            Number(process.hrtime.bigint() - start) / 1e9
+        );
+    });
+
+    next();
+});
+
 
 // 2. Ruta de validación de infraestructura
 app.get('/health', async (req, res) => {
     res.json({ status: 'OK', servicio: 'SecureHub API', version: '1.0.0' });
+});
+
+// Metricas de observabilidad para Prometheus. No registrar URLs ni parametros sensibles.
+app.get('/metrics', async (req, res, next) => {
+    try {
+        res.set('Content-Type', metricsRegistry.contentType);
+        res.end(await metricsRegistry.metrics());
+    } catch (error) {
+        next(error);
+    }
 });
 
 // rutas de negocio

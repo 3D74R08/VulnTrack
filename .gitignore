@@ -46,3 +46,7 @@ _cleanup_done.txt
 *.backup-*
 securehub-*.dump
 backend/zap-reports/
+*.bak
+
+# Secreto del bot de Telegram para Alertmanager (proveer fuera del repo; ver .example)
+monitoring/alertmanager/telegram-token.txt
