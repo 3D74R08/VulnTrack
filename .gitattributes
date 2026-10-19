@@ -1,10 +1,10 @@
-﻿# Los scripts .sh se ejecutan DENTRO de contenedores Linux (p. ej. el init de
-# Postgres base_datos/00-create-app-user.sh). Deben conservar finales de linea LF
-# SIEMPRE, incluso en clones recien hechos en Windows con core.autocrlf=true.
+# Los scripts .sh se ejecutan DENTRO de contenedores Linux, por ejemplo el init
+# de Postgres en base_datos/00-create-app-user.sh. Deben conservar finales de
+# linea LF SIEMPRE, incluso en clones recien hechos en Windows con autocrlf=true.
 #
 # '-text' desactiva toda conversion de EOL de git en el checkout: git escribe los
-# bytes del blob (ya en LF) tal cual, sin reintroducir CR. Esto evita el fallo
-# "/bin/sh^M: bad interpreter" que rompe el init de la BD en un clon limpio. La
+# bytes del blob, ya en LF, tal cual, sin reintroducir CR. Esto evita el fallo
+# '/bin/sh bad interpreter' que rompe el init de la BD en un clon limpio. La
 # variante anterior 'text eol=lf' no se aplicaba de forma fiable en el PRIMER
 # checkout de un git clone en Windows, dejando el script con CRLF.
 *.sh -text
