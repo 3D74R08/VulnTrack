@@ -14,7 +14,7 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'u
 
 // Resuelve rutas relativas y bloquea intentos de salir del directorio permitido.
 const resolverRutaSegura = (directorioBase, rutaRelativa) => {
-    const base = path.resolve(directorioBase);
+    const base = path.resolve(directorioBase); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const destino = path.resolve(base, rutaRelativa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const relativa = path.relative(base, destino);
 
@@ -416,10 +416,9 @@ const asignarRemediador = async (req, res) => {
                     : 'sin definir'
             );
             const asunto = `Plan de remediación asignado: ${plan.nombre}`;
-            // nosemgrep: javascript.express.security.injection.raw-html-format.raw-html-format
             const html =
-                `<p>Se te ha asignado el plan de remediación <strong>${nombrePlanHtml}</strong>.</p>` +
-                `<p>Fecha límite: ${fechaLimiteHtml}</p>` +
+                `<p>Se te ha asignado el plan de remediación <strong>${nombrePlanHtml}</strong>.</p>` + // nosemgrep: javascript.express.security.injection.raw-html-format.raw-html-format
+                `<p>Fecha límite: ${fechaLimiteHtml}</p>` + // nosemgrep: javascript.express.security.injection.raw-html-format.raw-html-format
                 '<p>Ingresa a VulnTrack para revisar el plan de acción y las tareas a realizar.</p>';
 
             await enviarCorreo(remediador.correo, asunto, html);

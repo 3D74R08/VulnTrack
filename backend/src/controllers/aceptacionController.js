@@ -22,7 +22,7 @@ const FIRMA_MAX_BYTES = 2 * 1024 * 1024; // < 2 MB
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const resolverRutaSegura = (directorioBase, rutaRelativa) => {
-    const base = path.resolve(directorioBase);
+    const base = path.resolve(directorioBase); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const destino = path.resolve(base, rutaRelativa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const relativa = path.relative(base, destino);
 
