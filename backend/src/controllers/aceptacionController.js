@@ -21,6 +21,23 @@ const FIRMA_MAX_BYTES = 2 * 1024 * 1024; // < 2 MB
 
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const resolverRutaSegura = (directorioBase, rutaRelativa) => {
+    const base = path.resolve(directorioBase);
+    const destino = path.resolve(base, rutaRelativa);
+    const relativa = path.relative(base, destino);
+
+    if (
+        !relativa ||
+        relativa.startsWith(`..${path.sep}`) ||
+        relativa === '..' ||
+        path.isAbsolute(relativa)
+    ) {
+        throw new Error('Ruta de archivo no permitida.');
+    }
+
+    return destino;
+};
+
 /**
  * Aceptar el riesgo de una vulnerabilidad (solo ADMINISTRADOR).
  * Body: { id_hallazgo, justificacion, fecha_revision?, firma (dataURL PNG) }.
@@ -234,15 +251,30 @@ const consultarAceptacion = async (req, res) => {
  */
 const descargarFirma = async (req, res) => {
     const { id_empresa } = req.usuario;
+
     try {
-        // RLS impide leer la firma de otro tenant aunque se adivine el id.
-        const r = await queryConRLS(id_empresa,
-            'SELECT firma_ruta FROM aceptaciones_riesgo WHERE id_aceptacion = $1', [req.params.idAceptacion]);
-        if (r.rows.length === 0 || !r.rows[0].firma_ruta) return res.status(404).json({ error: 'Firma no encontrada.' });
-        const abs = path.resolve(UPLOAD_DIR, r.rows[0].firma_ruta);
-        if (!abs.startsWith(path.resolve(UPLOAD_DIR)) || !fs.existsSync(abs)) {
+        const r = await queryConRLS(
+            id_empresa,
+            'SELECT firma_ruta FROM aceptaciones_riesgo WHERE id_aceptacion = $1',
+            [req.params.idAceptacion]
+        );
+
+        if (r.rows.length === 0 || !r.rows[0].firma_ruta) {
             return res.status(404).json({ error: 'Firma no encontrada.' });
         }
+
+        let abs;
+
+        try {
+            abs = resolverRutaSegura(UPLOAD_DIR, r.rows[0].firma_ruta);
+        } catch {
+            return res.status(404).json({ error: 'Firma no encontrada.' });
+        }
+
+        if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+            return res.status(404).json({ error: 'Firma no encontrada.' });
+        }
+
         return res.sendFile(abs);
     } catch (error) {
         console.error('[ERROR DESCARGAR FIRMA]:', error.message);
