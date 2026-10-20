@@ -454,3 +454,129 @@ Este proyecto nace bajo un enfoque *Security-by-Design*:
 | **A05 – Security Misconfiguration** | `helmet` para cabeceras seguras; CORS restringido por lista blanca (`CORS_ORIGINS`); `trust proxy` para resolver la IP real del cliente; límite de payload JSON (`10kb`). |
 | **A07 – Auth Failures** | Expiración de JWT. Imposición mandatoria de MFA (TOTP) al salir. Rate-limiting anti fuerza bruta en `POST /api/auth/login` (por IP e IP+correo) respaldado por Redis. |
 | **A09 – Security Logging** | Tabla inmutable `EVENTOS_AUDITORIA` que registra intentos exitosos, creaciones, 401 y 403. |
+
+
+## 7. 📊 Configuración de Grafana y Prometheus
+
+VulnTrack utiliza Prometheus para recopilar métricas de la API y Grafana para visualizarlas mediante un dashboard de monitorización.
+
+### 7.1. Acceder a Grafana
+
+1. Inicia los servicios de VulnTrack mediante Docker Compose.
+2. Abre Grafana en el navegador: [http://localhost:3001](http://localhost:3001).
+3. Inicia sesión con las credenciales configuradas para tu entorno.
+4. En el menú lateral, entra a **Connections → Data sources**.
+5. Selecciona **Add data source** y elige **Prometheus**.
+6. En el campo **Prometheus server URL**, introduce la dirección correspondiente a tu despliegue:
+   - **Docker Compose:** utiliza la URL interna del servicio Prometheus, por ejemplo `http://prometheus:9090`, si ese es el nombre del servicio y ambos contenedores comparten una red.
+   - **Ejecución directa en Windows:** utiliza `http://localhost:9090`.
+7. Pulsa **Save & test** y verifica que la conexión sea correcta.
+
+> **Nota:** dentro de un contenedor, `localhost` hace referencia al propio contenedor. Por eso, Grafana normalmente debe conectarse a Prometheus mediante el nombre de su servicio en Docker Compose.
+
+### 7.2. Crear el dashboard
+
+1. En el menú lateral, selecciona **Dashboards**.
+2. Pulsa **New → New dashboard**.
+3. Selecciona **Add visualization**.
+4. Elige la fuente de datos de Prometheus.
+5. Introduce la consulta PromQL correspondiente.
+6. Configura el nombre y el tipo de visualización del panel.
+7. Pulsa **Apply** para añadirlo al dashboard.
+8. Repite los pasos para cada una de las cuatro métricas.
+9. Al terminar, pulsa **Save dashboard** y asigna el nombre `VulnTrack - Monitorización de API`.
+
+### 7.3. Panel 1: Disponibilidad de la API
+
+**Nombre:** Disponibilidad de la API
+
+**Consulta PromQL:**
+
+```promql
+up{job="vulntrack-api"}
+```
+
+**Visualización recomendada:** Stat.
+
+Esta métrica indica si Prometheus puede recopilar métricas del objetivo de la API:
+
+- `1`: objetivo accesible para Prometheus.
+- `0`: objetivo inaccesible o fallo al recopilar métricas.
+
+Configura los valores para que el panel permita distinguir fácilmente entre disponibilidad y fallo.
+
+### 7.4. Panel 2: Memoria utilizada por la API (MB)
+
+**Nombre:** Memoria utilizada por la API (MB)
+
+**Consulta PromQL:**
+
+```promql
+process_resident_memory_bytes{job="vulntrack-api"} / 1024 / 1024
+```
+
+**Visualización recomendada:** Time series.
+
+La consulta convierte la memoria residente del proceso de bytes a megabytes.
+
+En las opciones del panel, configura la unidad de visualización como **megabytes (MB)**. Así podrás observar cómo cambia el consumo de memoria de la API a lo largo del tiempo.
+
+### 7.5. Panel 3: Peticiones HTTP por segundo
+
+**Nombre:** Peticiones HTTP por segundo
+
+**Consulta PromQL:**
+
+```promql
+sum(rate(vulntrack_http_requests_total[3m]))
+```
+
+**Visualización recomendada:** Time series.
+
+Esta consulta calcula la tasa agregada de peticiones HTTP por segundo durante una ventana de tres minutos.
+
+La métrica `vulntrack_http_requests_total` debe ser un contador acumulativo de solicitudes HTTP. La visualización permite observar los cambios en el tráfico de la API.
+
+### 7.6. Panel 4: Latencia media HTTP (segundos)
+
+**Nombre:** Latencia media HTTP (segundos)
+
+**Consulta PromQL:**
+
+```promql
+sum(rate(vulntrack_http_request_duration_seconds_sum[3m]))
+/
+sum(rate(vulntrack_http_request_duration_seconds_count[3m]))
+```
+
+**Visualización recomendada:** Time series.
+
+Esta consulta calcula la duración media de las solicitudes HTTP durante una ventana de tres minutos, dividiendo la tasa acumulada de duración entre la tasa de solicitudes observadas.
+
+Configura la unidad del panel como **seconds (s)** para visualizar la latencia en segundos.
+
+> **Nota:** esta consulta requiere que la API exponga las métricas `vulntrack_http_request_duration_seconds_sum` y `vulntrack_http_request_duration_seconds_count`. Si no hay solicitudes registradas en la ventana, el resultado puede no estar disponible.
+
+### 7.7. Validar las métricas
+
+Si los paneles no muestran datos, realiza estas comprobaciones:
+
+1. Abre [Prometheus Targets](http://localhost:9090/targets) y verifica que el objetivo `vulntrack-api` esté en estado `UP`.
+2. Confirma que Grafana tenga configurada correctamente la fuente de datos de Prometheus.
+3. Verifica que las métricas utilizadas en las consultas estén disponibles en Prometheus.
+4. Comprueba que el nombre del trabajo sea exactamente `vulntrack-api`.
+5. Asegúrate de que exista actividad reciente de la API y selecciona un rango de tiempo apropiado en Grafana.
+
+### 7.8. Resultado esperado
+
+El dashboard de VulnTrack debe mostrar cuatro paneles:
+
+| Panel | Métrica | Visualización |
+|---|---|---|
+| Disponibilidad de la API | Estado del objetivo de Prometheus | Stat |
+| Memoria utilizada por la API (MB) | Memoria residente del proceso | Time series |
+| Peticiones HTTP por segundo | Tasa de solicitudes HTTP | Time series |
+| Latencia media HTTP (segundos) | Duración media de las solicitudes | Time series |
+
+Estas visualizaciones permiten observar la disponibilidad del objetivo, el consumo de memoria, el volumen de solicitudes y la latencia media de la API.
+
