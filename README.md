@@ -297,17 +297,22 @@ Debes crear un archivo `.env` en la **raíz del proyecto** (junto a `docker-comp
 
 Esta guía explica cómo descargar, configurar y ejecutar VulnTrack en un computador nuevo con Windows, utilizando Docker Compose y PostgreSQL.
 
-También incluye el procedimiento para restaurar una copia de seguridad de la base de datos existente, conservando los usuarios, las empresas y los demás registros almacenados.
 
-**Repositorio:** https://github.com/danielmolina71lancheros/VulnTrack.git
+**Repositorio:** https://github.com/3D74R08/VulnTrack.git
 
-**Rama:** `prueba/pipeline-devsecops`
+**Rama:** `main
 
 **Frontend local:** http://localhost:5173
 
 **API local:** http://localhost:3000
 
-> Importante: GitHub contiene el código fuente, pero no incluye el archivo `.env` ni la copia de seguridad de PostgreSQL. Estos archivos deben transferirse de forma privada.
+**Grafana:** http://localhost:3001/d/adl6rln/vulntrack-monitorizacion-de-infraestructur?orgId=1&from=now-6h&to=now&timezone=browser
+
+**Prometeus reglas:** http://localhost:9090/rules
+
+**Prometeus alertas:** http://localhost:9090/alerts
+
+> Importante: GitHub contiene el código fuente, pero no incluye el archivo `.env`, `.env.example` ni la copia de seguridad de PostgreSQL. Estos archivos deben transferirse de forma privada.
 
 ---
 
@@ -320,7 +325,6 @@ Instalar los siguientes programas en el computador nuevo:
 - Docker Compose, incluido en Docker Desktop.
 - Node.js y npm, si se necesita ejecutar el frontend directamente desde Windows en lugar de utilizar el contenedor correspondiente.
 - Acceso al repositorio de GitHub.
-- El archivo de respaldo PostgreSQL `securehub-20261015.dump`, transferido de forma privada desde el computador original.
 
 ### Verificar las instalaciones
 
@@ -330,19 +334,9 @@ Abrir PowerShell y ejecutar:
 git --version
 docker --version
 docker compose version
-```
-
-Si se va a ejecutar el frontend directamente desde Windows:
-
-```powershell
 node --version
 npm --version
 ```
-
-Abrir Docker Desktop y esperar hasta que indique que Docker está funcionando.
-
----
-
 ## 3. Descargar el proyecto desde GitHub
 
 Crear una carpeta para los proyectos, si todavía no existe:
@@ -355,7 +349,7 @@ Set-Location "$HOME\Documents\Proyectos"
 Clonar la rama del proyecto:
 
 ```powershell
-git clone --branch prueba/pipeline-devsecops --single-branch https://github.com/danielmolina71lancheros/VulnTrack.git
+git clone https://github.com/3D74R08/VulnTrack.git
 ```
 
 Ingresar a la carpeta del proyecto:
@@ -371,53 +365,15 @@ git branch --show-current
 git status
 ```
 
-La rama esperada es:
-
-```text
-prueba/pipeline-devsecops
-```
-
----
-
 ## 4. Configurar las variables de entorno
 
-Crear el archivo local `.env` a partir de la plantilla:
+Pega los siguientes archivos dentro de la carpeta Vulntrack
+
 
 ```powershell
-Copy-Item .env.example .env
+.env.example
+.env
 ```
-
-Abrir el archivo para editarlo:
-
-```powershell
-notepad .env
-```
-
-Configurar los valores que correspondan al entorno local. Revisar especialmente las siguientes variables:
-
-| Variable | Descripción |
-|---|---|
-| `DB_NAME` | Nombre de la base de datos. |
-| `DB_USER` | Usuario de administración de PostgreSQL utilizado por la configuración del proyecto. |
-| `DB_PASSWORD` | Contraseña de dicho usuario. |
-| `DB_APP_USER` | Usuario utilizado por la aplicación. |
-| `DB_APP_PASSWORD` | Contraseña del usuario de aplicación. |
-| `JWT_SECRET` | Secreto utilizado para firmar los tokens de autenticación. |
-| `REDIS_PASSWORD` | Contraseña de Redis, si está configurada. |
-| `CORS_ORIGINS` | Orígenes permitidos para las solicitudes del frontend. |
-| `NVD_API_KEY` | Clave opcional o requerida según la configuración de consultas a NVD. |
-| `SMTP_HOST` | Servidor SMTP para el envío de correos. |
-| `SMTP_PORT` | Puerto SMTP. |
-| `SMTP_USER` | Usuario SMTP. |
-| `SMTP_PASS` | Contraseña SMTP. |
-| `SMTP_FROM` | Dirección remitente de los correos. |
-| `SCANNER_INTERVAL_MS` | Intervalo de ejecución del escáner en milisegundos. |
-
-Los nombres y valores de ejemplo de `.env.example` deben contrastarse con la configuración real de Docker Compose.
-
-**No reutilizar contraseñas de ejemplo en un entorno real.** Utilizar secretos propios del entorno, fuertes y privados. No publicar `.env` en GitHub.
-
----
 
 ## 5. Validar la configuración de Docker Compose
 
@@ -446,151 +402,27 @@ Consultar el estado:
 ```powershell
 docker compose ps
 ```
-
-Consultar los registros generales:
-
-```powershell
-docker compose logs --tail=100
-```
-
-Consultar los registros de la API:
-
-```powershell
-docker compose logs --tail=100 securehub-api
-```
-
-Consultar los registros de PostgreSQL:
-
-```powershell
-docker compose logs --tail=100 securehub-db
-```
-
 Si algún servicio no está funcionando, revisar sus registros antes de continuar.
 
-> Si la base de datos se va a restaurar desde una copia del computador original, realizar primero el paso 7. No registrar usuarios nuevos ni introducir información que deba conservarse antes de completar la restauración.
-
----
-
-## 7. Restaurar la base de datos existente
-
-Este procedimiento permite recuperar los datos originales, incluido el usuario administrador `grupo4@gmail.com`, siempre que estén presentes en el respaldo transferido.
-
-### 7.1. Transferir el archivo de respaldo
-
-Copiar de forma privada el archivo:
-
-```text
-securehub-20261015.dump
-```
-
-En el computador nuevo, guardarlo en una ubicación fuera del repositorio. Por ejemplo:
-
-```text
-C:\Users\USUARIO\Documents\securehub-20261015.dump
-```
-
-Sustituir `USUARIO` por el usuario real de Windows.
-
-No subir este archivo a GitHub ni incorporarlo al repositorio.
-
-### 7.2. Comprobar que PostgreSQL está funcionando
-
-Desde la raíz del proyecto:
-
-```powershell
-docker compose ps securehub-db
-```
-
-Si el servicio no está iniciado:
-
-```powershell
-docker compose up -d securehub-db
-```
-
-Esperar a que PostgreSQL esté listo y comprobar sus registros:
-
-```powershell
-docker compose logs --tail=100 securehub-db
-```
-
-### 7.3. Copiar el respaldo al contenedor
-
-Ejecutar:
-
-```powershell
-docker compose cp "$HOME\Documents\securehub-20261015.dump" securehub-db:/tmp/securehub.dump
-```
-
-Si el archivo está en otra ubicación, cambiar la ruta del archivo de origen.
-
-### 7.4. Restaurar la copia
-
-**Advertencia:** el siguiente comando puede eliminar y reemplazar objetos existentes en la base de datos `securehub`. Ejecutarlo únicamente en el computador nuevo, después de confirmar que se desea reemplazar su contenido con el respaldo original.
-
-```powershell
-docker compose exec -T securehub-db pg_restore `
-  -U admin_db `
-  -d securehub `
-  --clean `
-  --if-exists `
-  --no-owner `
-  --no-privileges `
-  --exit-on-error `
-  /tmp/securehub.dump
-```
-
-Si el comando termina con un error, detenerse y revisar el mensaje antes de continuar. No repetir la restauración a ciegas.
-
-Si falla por diferencias entre roles, extensiones o permisos, revisar el error específico y adaptar el procedimiento al estado real de la base de datos. No eliminar la base de datos original del computador de origen.
-
-### 7.5. Comprobar que la base de datos responde
-
-```powershell
-docker compose exec -T securehub-db pg_isready -U admin_db -d securehub
-```
-
-El resultado esperado indica que PostgreSQL acepta conexiones.
-
-Revisar también los registros de la API:
-
-```powershell
-docker compose logs --tail=100 securehub-api
-```
-
----
-
-## 8. Verificar el administrador y los datos recuperados
-
-Una vez restaurada la base de datos, verificar el inicio de sesión con el administrador existente:
-
-```text
-Correo: grupo4@gmail.com
-Contraseña: la contraseña válida de la cuenta original
-```
-
-La contraseña debe ser la que corresponda a la cuenta almacenada en la copia de seguridad. No se debe asumir que una contraseña nueva o la de `.env` corresponde a ese usuario.
-
-También se debe comprobar que las empresas, los activos, las vulnerabilidades y los demás registros que existían en la copia estén disponibles.
-
-Si el usuario no puede iniciar sesión, revisar los registros de la API y verificar la restauración antes de crear otra cuenta de administrador.
-
----
-
-## 9. Iniciar el frontend
+## 7. Iniciar el frontend
 
 ### Opción A. Frontend ejecutado desde Windows
 
-Si el proyecto requiere iniciar el frontend directamente desde Windows, abrir otra ventana de PowerShell:
+Instala npm desde la terminal de git bash
+
+```git bash
+npm install
+```
+desde la terminal de powershell levanta el frontend
 
 ```powershell
-Set-Location "$HOME\Documents\Proyectos\VulnTrack"
+Set-Location "$HOME\Documents\Proyectos\VulnTrack\frontend"
 ```
 
 Ingresar a la carpeta del frontend según la estructura real del repositorio. Si se encuentra en la raíz, ejecutar:
 
 ```powershell
-npm install
-npm run dev
+npm.cmd run dev
 ```
 
 Si está dentro de una carpeta específica, entrar primero a esa carpeta.
@@ -599,95 +431,11 @@ Abrir en el navegador:
 
 http://localhost:5173
 
-### Opción B. Frontend ejecutado en Docker
+**ingresa a Vulntrack con los siguientes datos:**
 
-Si el frontend ya está configurado en Docker Compose:
-
-```powershell
-docker compose ps securehub-frontend
-docker compose logs --tail=100 securehub-frontend
-```
-
-No es necesario ejecutar una segunda instancia del frontend si el contenedor ya está funcionando.
-
----
-
-## 10. Verificar el funcionamiento general
-
-Realizar las siguientes comprobaciones:
-
-- [ ] Docker Desktop está funcionando.
-- [ ] Los servicios aparecen correctamente en `docker compose ps`.
-- [ ] PostgreSQL acepta conexiones.
-- [ ] La API inicia sin errores.
-- [ ] El frontend abre en el navegador.
-- [ ] El administrador existente puede iniciar sesión.
-- [ ] Las empresas y los registros anteriores están presentes.
-- [ ] Las funciones principales de VulnTrack responden correctamente.
-
-Para consultar el estado general:
-
-```powershell
-docker compose ps
-```
-
-Para consultar los registros de todos los servicios:
-
-```powershell
-docker compose logs --tail=100
-```
-
----
-
-## 11. Comandos habituales
-
-### Iniciar los servicios
-
-```powershell
-docker compose up -d
-```
-
-### Detener los servicios
-
-```powershell
-docker compose stop
-```
-
-### Volver a iniciar los servicios detenidos
-
-```powershell
-docker compose start
-```
-
-### Ver el estado
-
-```powershell
-docker compose ps
-```
-
-### Ver registros de la API
-
-```powershell
-docker compose logs -f securehub-api
-```
-
-### Reconstruir los servicios después de cambios en el código
-
-```powershell
-docker compose up -d --build
-```
-
-### Detener y eliminar los contenedores del proyecto
-
-```powershell
-docker compose down
-```
-
-Este último comando no elimina los volúmenes de forma predeterminada. **No utilizar `docker compose down -v` como comando de limpieza rutinario**, porque puede borrar los volúmenes que contienen datos de PostgreSQL y otros servicios.
-
----
-
-## 12. Seguridad y mantenimiento
+**Correo: grupo4@gmail.com**
+Contraseña: Cambio01*
+## 8. Seguridad y mantenimiento
 
 - No subir `.env`, contraseñas, tokens ni archivos `.dump` a GitHub.
 - Mantener una copia de seguridad privada de la base de datos.
@@ -699,7 +447,7 @@ Este último comando no elimina los volúmenes de forma predeterminada. **No uti
 
 ---
 
-## 13. Resultado esperado
+## 9. Resultado esperado
 
 Al completar este procedimiento, VulnTrack debe estar ejecutándose en el segundo computador con sus servicios configurados, el frontend accesible y, si se restauró correctamente la copia de seguridad, los usuarios, las empresas y los demás registros que existían en el computador original.
 
@@ -716,21 +464,6 @@ La restauración de datos y el despliegue de la aplicación son operaciones inde
 | Cierre de sesión (Logout) bloqueado | Política de MFA forzado. | Se debe escanear el QR e ingresar el PIN al menos una vez para habilitar la salida. |
 
 ---
-
-## Cuentas de Prueba
-
-La base de datos no incluye contraseñas compartidas en Git. Para crear automáticamente una cuenta administradora de demostración en el entorno local, copie `.env.example` a `.env` y configure:
-
-```env
-DEMO_ADMIN_ENABLED=true
-DEMO_ADMIN_NAME=Grupo 4
-DEMO_ADMIN_EMAIL=grupo4@gmail.com
-DEMO_ADMIN_PASSWORD=define-una-clave-local
-```
-
-Luego inicie el proyecto con `docker compose up --build -d`. Al iniciar la API, se crea la empresa, sus roles y el usuario administrador si ese correo todavía no existe. La contraseña se almacena con bcrypt. El proceso no cambia cuentas existentes. Mantenga `.env` fuera de Git y desactive `DEMO_ADMIN_ENABLED` después de crear la cuenta si no desea que se aprovisione de nuevo al borrar el usuario.
-
-Para que otra persona clone el proyecto, debe crear su propio `.env` y definir allí la contraseña de demostración; no hace falta registrar la cuenta manualmente ni llamar a la API con Postman.
 
 **Nota de Seguridad (MFA):** Durante el primer inicio de sesión, el doble factor estará inactivo. El sistema forzará de manera estricta la configuración del MFA en cuanto el usuario intente desloguearse (Cerrar Sesión).
 
