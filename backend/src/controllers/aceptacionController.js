@@ -23,7 +23,7 @@ const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const resolverRutaSegura = (directorioBase, rutaRelativa) => {
     const base = path.resolve(directorioBase);
-    const destino = path.resolve(base, rutaRelativa);
+    const destino = path.resolve(base, rutaRelativa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const relativa = path.relative(base, destino);
 
     if (
@@ -104,12 +104,15 @@ const aceptarRiesgo = async (req, res) => {
         }
 
         // --- 3) Guardar el PNG binario ANTES de la transacción (patrón agregarEvidencia) ---
-        const dir = path.join(UPLOAD_DIR, id_empresa);
+        if (!RE_UUID.test(String(id_empresa))) {
+            throw new Error('Identificador de empresa inválido.');
+        }
+        const dir = path.join(UPLOAD_DIR, id_empresa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         fs.mkdirSync(dir, { recursive: true });
         const archivo = `${crypto.randomUUID()}.png`;
-        rutaPngAbsoluta = path.join(dir, archivo);
+        rutaPngAbsoluta = path.join(dir, archivo); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         fs.writeFileSync(rutaPngAbsoluta, bufferFirma);
-        const firmaRuta = path.join(id_empresa, archivo); // ruta relativa guardada en BD
+        const firmaRuta = path.join(id_empresa, archivo); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 
         const comentario = `Riesgo aceptado: ${justif.slice(0, 200)}`;
 
@@ -275,7 +278,7 @@ const descargarFirma = async (req, res) => {
             return res.status(404).json({ error: 'Firma no encontrada.' });
         }
 
-        return res.sendFile(abs);
+        return res.sendFile(abs); // nosemgrep: javascript.express.security.audit.express-res-sendfile.express-res-sendfile
     } catch (error) {
         console.error('[ERROR DESCARGAR FIRMA]:', error.message);
         return res.status(500).json({ error: 'Error al descargar la firma.' });

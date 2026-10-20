@@ -6,7 +6,7 @@ const { evaluarRiesgoAutomatico } = require('../services/riesgoService');
 
 const manejarError = (res, error, contexto) => {
     if (error instanceof ErrorNegocio) return res.status(error.codigo).json({ error: error.message });
-    console.error(`[ERROR ${contexto}]:`, error.message);
+    console.error('[ERROR HALLAZGOS]:', contexto, error.message);
     return res.status(500).json({ error: `Error interno (${contexto}).` });
 };
 
