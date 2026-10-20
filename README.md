@@ -291,150 +291,122 @@ Debes crear un archivo `.env` en la **raíz del proyecto** (junto a `docker-comp
 
 ---
 
-## Instrucciones de Despliegue Local
+# 🚀 VulnTrack — Guía de despliegue local
 
-## 1. Descripción
+Esta guía explica cómo instalar y ejecutar **VulnTrack** en un computador con Windows utilizando Docker Compose y PostgreSQL.
 
-Esta guía explica cómo descargar, configurar y ejecutar VulnTrack en un computador nuevo con Windows, utilizando Docker Compose y PostgreSQL.
+## 1. Información del proyecto
 
-
-**Repositorio:** https://github.com/3D74R08/VulnTrack.git
-
-**Rama:** `main
-
-**Frontend local:** http://localhost:5173
-
-**API local:** http://localhost:3000
-
-**Grafana:** http://localhost:3001/d/adl6rln/vulntrack-monitorizacion-de-infraestructur?orgId=1&from=now-6h&to=now&timezone=browser
-
-**Prometeus reglas:** http://localhost:9090/rules
-
-**Prometeus alertas:** http://localhost:9090/alerts
-
-> Importante: GitHub contiene el código fuente, pero no incluye el archivo `.env`, `.env.example` ni la copia de seguridad de PostgreSQL. Estos archivos deben transferirse de forma privada.
-
----
+- **Repositorio:** [VulnTrack en GitHub](https://github.com/3D74R08/VulnTrack)
+- **Rama:** `main`
+- **Frontend:** http://localhost:5173
+- **API:** http://localhost:3000
+- **Grafana:** [Dashboard de monitorización](http://localhost:3001/d/adl6rln/vulntrack-monitorizacion-de-infraestructur?orgId=1&from=now-6h&to=now&timezone=browser)
+- **Prometheus:** http://localhost:9090
+- **Reglas de Prometheus:** http://localhost:9090/rules
+- **Alertas de Prometheus:** http://localhost:9090/alerts
 
 ## 2. Requisitos previos
 
-Instalar los siguientes programas en el computador nuevo:
+Antes de comenzar, instala:
 
 - Git para Windows.
-- Docker Desktop para Windows.
+- Docker Desktop.
 - Docker Compose, incluido en Docker Desktop.
-- Node.js y npm, si se necesita ejecutar el frontend directamente desde Windows en lugar de utilizar el contenedor correspondiente.
-- Acceso al repositorio de GitHub.
+- Node.js y npm, únicamente si ejecutarás el frontend directamente desde Windows.
 
-### Verificar las instalaciones
+Abre Docker Desktop y verifica que esté funcionando.
 
-Abrir PowerShell y ejecutar:
+## 3. Descargar el proyecto
 
-```powershell
-git --version
-docker --version
-docker compose version
-node --version
-npm --version
-```
-## 3. Descargar el proyecto desde GitHub
-
-Crear una carpeta para los proyectos, si todavía no existe:
-
-```powershell
-New-Item -ItemType Directory -Force "$HOME\Documents\Proyectos"
-Set-Location "$HOME\Documents\Proyectos"
-```
-
-Clonar la rama del proyecto:
+Abre PowerShell y ejecuta:
 
 ```powershell
 git clone https://github.com/3D74R08/VulnTrack.git
+cd VulnTrack
 ```
 
-Ingresar a la carpeta del proyecto:
-
-```powershell
-Set-Location .\VulnTrack
-```
-
-Verificar la rama y el estado:
-
-```powershell
-git branch --show-current
-git status
-```
+El repositorio se descargará en una carpeta llamada `VulnTrack`.
 
 ## 4. Configurar las variables de entorno
 
-Pega los siguientes archivos dentro de la carpeta Vulntrack
-
-
-```powershell
-.env.example
-.env
-```
-
-## 5. Validar la configuración de Docker Compose
-
-Desde la raíz del proyecto, ejecutar:
+En la raíz del proyecto, crea el archivo `.env` a partir de `.env.example`:
 
 ```powershell
-docker compose config --quiet
+Copy-Item .env.example .env
 ```
 
-Si no muestra errores, continuar.
+Abre `.env` y configura los valores necesarios para tu entorno.
 
-Si aparecen errores, revisar las variables de `.env`, los nombres de los servicios y la sintaxis de `docker-compose.yml`.
+**Importante:**
+- El archivo `.env` contiene configuración privada y no debe subirse a GitHub.
+- El archivo `.env.example` sí puede publicarse, siempre que no contenga credenciales reales.
+- Si el proyecto necesita una copia de seguridad de PostgreSQL, debes obtenerla por un medio seguro y restaurarla según el procedimiento del proyecto.
 
----
+## 5. Iniciar VulnTrack
 
-## 6. Levantar los servicios
-
-Construir las imágenes e iniciar los servicios:
+Desde la raíz del proyecto, ejecuta:
 
 ```powershell
 docker compose up -d --build
 ```
 
-Consultar el estado:
+Este comando construye las imágenes necesarias e inicia los servicios definidos en Docker Compose.
 
-```powershell
-docker compose ps
-```
-Si algún servicio no está funcionando, revisar sus registros antes de continuar.
-
-## 7. Iniciar el frontend
-
-### Opción A. Frontend ejecutado desde Windows
-
-Instala npm desde la terminal de git bash
-
-```git bash
-npm install
-```
-desde la terminal de powershell levanta el frontend
-
-```powershell
-Set-Location "$HOME\Documents\Proyectos\VulnTrack\frontend"
-```
-
-Ingresar a la carpeta del frontend según la estructura real del repositorio. Si se encuentra en la raíz, ejecutar:
-
-```powershell
-npm.cmd run dev
-```
-
-Si está dentro de una carpeta específica, entrar primero a esa carpeta.
-
-Abrir en el navegador:
+Una vez iniciados, abre el frontend:
 
 http://localhost:5173
 
-**ingresa a Vulntrack con los siguientes datos:**
+La API y las herramientas de monitorización estarán disponibles en sus respectivas direcciones cuando sus servicios estén funcionando.
 
-**Correo: grupo4@gmail.com**
-Contraseña: Cambio01*
+## 6. Ejecutar el frontend por separado (opcional)
+
+desde la terminal de git bash ejecuta el siguiente comando:
+
+```powershell
+cd frontend
+npm install
+```
+
+Si prefieres ejecutar el frontend directamente desde Windows en lugar de usar su contenedor, abre otra terminal de PowerShell y ejecuta:
+
+```powershell
+cd frontend
+npm.cmd run dev
+```
+
+Después, abre http://localhost:5173.
+
+No ejecutes esta opción si el frontend ya está funcionando en el mismo puerto mediante Docker.
+
+## 7. Acceso a la aplicación
+
+Utiliza las credenciales de prueba proporcionadas para el entorno local.
+
+Por seguridad, no publiques contraseñas reales en el README ni en repositorios públicos. Entrega las credenciales mediante un canal privado.
+
+## 8. Detener los servicios
+
+Para detener VulnTrack sin eliminar los datos persistentes:
+
+```powershell
+docker compose down
+```
+
+Para volver a iniciar los servicios, utiliza el comando de inicio indicado en la sección 5.
+
+## ✅ Verificación final
+
+Antes de dar por terminada la instalación, comprueba que:
+
+- Docker Desktop esté funcionando.
+- Los servicios de Docker Compose se hayan iniciado correctamente.
+- La base de datos esté disponible y tenga los datos requeridos.
+- El frontend y la API respondan.
+- Grafana y Prometheus estén disponibles si forman parte del despliegue.
+
+**Nota:** la disponibilidad de los servicios depende de la configuración de Docker Compose, las variables de entorno y la inicialización de la base de datos.
+
 ## 8. Seguridad y mantenimiento
 
 - No subir `.env`, contraseñas, tokens ni archivos `.dump` a GitHub.
