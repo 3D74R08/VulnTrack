@@ -87,10 +87,20 @@ const aceptarRiesgo = async (req, res) => {
         }
 
         // --- 3) Guardar el PNG binario ANTES de la transacción (patrón agregarEvidencia) ---
-        const dir = path.join(UPLOAD_DIR, id_empresa);
-        fs.mkdirSync(dir, { recursive: true });
+        // id_empresa proviene del JWT; se valida como UUID para descartar cualquier
+        // componente de ruta malicioso antes de usarlo en path.join (anti path traversal).
+        if (!RE_UUID.test(String(id_empresa))) {
+            return res.status(400).json({ error: 'Identificador de empresa inválido.' });
+        }
         const archivo = `${crypto.randomUUID()}.png`;
+        const dir = path.join(UPLOAD_DIR, id_empresa);
         rutaPngAbsoluta = path.join(dir, archivo);
+        // Defensa adicional: la ruta final debe quedar contenida en UPLOAD_DIR.
+        const baseUpload = path.resolve(UPLOAD_DIR);
+        if (!path.resolve(rutaPngAbsoluta).startsWith(baseUpload + path.sep)) {
+            return res.status(400).json({ error: 'Ruta de almacenamiento inválida.' });
+        }
+        fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(rutaPngAbsoluta, bufferFirma);
         const firmaRuta = path.join(id_empresa, archivo); // ruta relativa guardada en BD
 
@@ -239,8 +249,11 @@ const descargarFirma = async (req, res) => {
         const r = await queryConRLS(id_empresa,
             'SELECT firma_ruta FROM aceptaciones_riesgo WHERE id_aceptacion = $1', [req.params.idAceptacion]);
         if (r.rows.length === 0 || !r.rows[0].firma_ruta) return res.status(404).json({ error: 'Firma no encontrada.' });
-        const abs = path.resolve(UPLOAD_DIR, r.rows[0].firma_ruta);
-        if (!abs.startsWith(path.resolve(UPLOAD_DIR)) || !fs.existsSync(abs)) {
+        // Canonicalizar y confinar la ruta a UPLOAD_DIR (comparación con separador para
+        // que un prefijo como "/uploads-otro" no se cuele). firma_ruta viene de la BD.
+        const baseUpload = path.resolve(UPLOAD_DIR);
+        const abs = path.resolve(baseUpload, path.normalize(r.rows[0].firma_ruta));
+        if ((abs !== baseUpload && !abs.startsWith(baseUpload + path.sep)) || !fs.existsSync(abs)) {
             return res.status(404).json({ error: 'Firma no encontrada.' });
         }
         return res.sendFile(abs);

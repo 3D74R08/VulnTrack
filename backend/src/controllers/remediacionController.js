@@ -17,6 +17,14 @@ const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // se usa el directorio 'uploads' relativo a la raiz del backend como fallback local.
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'uploads');
 
+// UUID v4 (id_empresa viene del JWT; se valida antes de usarlo en path.join).
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Escape de entidades HTML para interpolar texto de usuario en cuerpos de correo (anti-XSS).
+const escaparHtml = (valor) => String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
 const SELECT_PLAN = `
     SELECT p.*, u.nombre_completo AS responsable, a.codigo_activo, a.nombre AS activo_nombre,
            (SELECT COUNT(*) FROM plan_vulnerabilidades pv WHERE pv.id_plan = p.id_plan AND pv.estado = TRUE) AS total_vulnerabilidades
@@ -226,8 +234,14 @@ const asignarRemediador = async (req, res) => {
         //    se ignora el resultado para no alterar el código de respuesta.
         if (remediador.correo) {
             const asunto = `Plan de remediación asignado: ${plan.nombre}`;
-            const html = `<p>Se te ha asignado el plan de remediación <strong>${plan.nombre}</strong>.</p>` +
-                `<p>Fecha límite: ${plan.fecha_limite ? new Date(plan.fecha_limite).toLocaleDateString('es-CO') : 'sin definir'}</p>` +
+            // Escapar el nombre del plan (texto de usuario almacenado en BD) antes de
+            // interpolarlo en el HTML del correo para evitar inyección HTML/XSS.
+            const nombreSeguro = escaparHtml(plan.nombre);
+            const fechaLimiteTexto = plan.fecha_limite
+                ? escaparHtml(new Date(plan.fecha_limite).toLocaleDateString('es-CO'))
+                : 'sin definir';
+            const html = `<p>Se te ha asignado el plan de remediación <strong>${nombreSeguro}</strong>.</p>` +
+                `<p>Fecha límite: ${fechaLimiteTexto}</p>` +
                 `<p>Ingresa a VulnTrack para revisar el plan de acción y las tareas a realizar.</p>`;
             await enviarCorreo(remediador.correo, asunto, html);
         }
@@ -257,12 +271,23 @@ const agregarEvidencia = async (req, res) => {
 
         let ruta = null, nombreArchivo = null;
         if (req.file) {
+            // id_empresa viene del JWT; se valida como UUID para descartar cualquier
+            // componente de ruta malicioso antes de usarlo en path.join.
+            if (!RE_UUID.test(String(id_empresa))) {
+                return res.status(400).json({ error: 'Identificador de empresa inválido.' });
+            }
             // Carpeta por tenant y nombre aleatorio: evita colisiones y path traversal
-            const dir = path.join(UPLOAD_DIR, id_empresa);
-            fs.mkdirSync(dir, { recursive: true });
             const ext = path.extname(req.file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '');
             const archivo = `${crypto.randomUUID()}${ext}`;
-            fs.writeFileSync(path.join(dir, archivo), req.file.buffer);
+            const dir = path.join(UPLOAD_DIR, id_empresa);
+            const destino = path.join(dir, archivo);
+            // Defensa adicional: la ruta final debe quedar contenida en UPLOAD_DIR.
+            const baseUpload = path.resolve(UPLOAD_DIR);
+            if (!path.resolve(destino).startsWith(baseUpload + path.sep)) {
+                return res.status(400).json({ error: 'Ruta de almacenamiento inválida.' });
+            }
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(destino, req.file.buffer);
             ruta = path.join(id_empresa, archivo);
             nombreArchivo = req.file.originalname.slice(0, 250);
         }
@@ -287,8 +312,12 @@ const descargarEvidencia = async (req, res) => {
         const r = await queryConRLS(id_empresa,
             'SELECT ruta_archivo, nombre_archivo FROM evidencias WHERE id_evidencia = $1 AND estado = TRUE', [req.params.id_evidencia]);
         if (r.rows.length === 0 || !r.rows[0].ruta_archivo) return res.status(404).json({ error: 'Archivo no encontrado.' });
-        const abs = path.resolve(UPLOAD_DIR, r.rows[0].ruta_archivo);
-        if (!abs.startsWith(path.resolve(UPLOAD_DIR)) || !fs.existsSync(abs)) return res.status(404).json({ error: 'Archivo no encontrado.' });
+        // Canonicalizar y confinar la ruta a UPLOAD_DIR (comparación con separador).
+        const baseUpload = path.resolve(UPLOAD_DIR);
+        const abs = path.resolve(baseUpload, path.normalize(r.rows[0].ruta_archivo));
+        if ((abs !== baseUpload && !abs.startsWith(baseUpload + path.sep)) || !fs.existsSync(abs)) {
+            return res.status(404).json({ error: 'Archivo no encontrado.' });
+        }
         res.download(abs, r.rows[0].nombre_archivo);
     } catch (error) {
         res.status(500).json({ error: 'Error al descargar la evidencia.' });
