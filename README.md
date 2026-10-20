@@ -580,3 +580,126 @@ El dashboard de VulnTrack debe mostrar cuatro paneles:
 
 Estas visualizaciones permiten observar la disponibilidad del objetivo, el consumo de memoria, el volumen de solicitudes y la latencia media de la API.
 
+
+## 8. 📋 Configuración de logs en Grafana
+
+Esta sección explica cómo consultar y visualizar los registros de los contenedores de VulnTrack desde Grafana. Las consultas utilizan **LogQL**, el lenguaje de consulta de logs de Loki.
+
+### 8.1. Acceder a Grafana
+
+1. Inicia los servicios de VulnTrack con Docker Compose.
+2. Abre Grafana en el navegador: [http://localhost:3001](http://localhost:3001).
+3. Inicia sesión con las credenciales configuradas para tu entorno.
+4. En el menú lateral, accede a **Connections → Data sources**.
+5. Comprueba si existe una fuente de datos de tipo **Loki**.
+6. Si no existe, selecciona **Add data source → Loki**.
+7. Configura la URL de Loki según la configuración de Docker Compose. Por ejemplo, si el servicio se llama `loki` y comparte una red con Grafana, utiliza `http://loki:3100`.
+8. Pulsa **Save & test** y comprueba que la conexión funcione.
+
+> **Importante:** las consultas de esta guía requieren una fuente de datos Loki configurada y logs que contengan las etiquetas `container` indicadas.
+
+### 8.2. Abrir el explorador de logs
+
+1. En el menú lateral de Grafana, selecciona **Explore**.
+2. Elige la fuente de datos **Loki**.
+3. Abre el editor de consultas en modo **Code**.
+4. Introduce una consulta LogQL.
+5. Selecciona el rango de tiempo que deseas revisar.
+6. Pulsa **Run query** para consultar los registros.
+
+### 8.3. Consultar los logs de la API
+
+**Nombre:** Logs de la API
+
+**Consulta LogQL:**
+
+```logql
+{container="securehub_api"}
+```
+
+Esta consulta muestra los registros asociados al contenedor `securehub_api`, siempre que Loki los esté recopilando con esa etiqueta.
+
+Se puede utilizar para revisar la actividad general de la API, seguir eventos y analizar mensajes durante una sesión de diagnóstico.
+
+### 8.4. Consultar los logs de PostgreSQL
+
+**Nombre:** Logs de la base de datos
+
+**Consulta LogQL:**
+
+```logql
+{container="securehub_db"}
+```
+
+Esta consulta permite visualizar los registros del contenedor `securehub_db`.
+
+Se utiliza para investigar mensajes relacionados con la base de datos, errores de conexión y otros eventos que queden registrados por el contenedor.
+
+### 8.5. Consultar los logs de Redis
+
+**Nombre:** Logs de Redis
+
+**Consulta LogQL:**
+
+```logql
+{container="securehub_redis"}
+```
+
+Esta consulta muestra los registros del contenedor `securehub_redis`.
+
+Permite revisar los mensajes registrados por Redis y apoyar el diagnóstico de problemas relacionados con el servicio de caché o almacenamiento en memoria.
+
+### 8.6. Filtrar errores de la API
+
+**Nombre:** Errores de la API
+
+**Consulta LogQL:**
+
+```logql
+{container="securehub_api"} |= "error"
+```
+
+Esta consulta filtra los registros de `securehub_api` que contienen el texto `error`.
+
+Es útil para localizar mensajes de error durante el diagnóstico de la aplicación. El filtro de texto distingue mayúsculas y minúsculas, por lo que no necesariamente encontrará variantes como `ERROR` o `Error`.
+
+### 8.7. Crear un dashboard para los logs
+
+Para reunir las consultas en un dashboard:
+
+1. Entra en **Dashboards**.
+2. Selecciona **New → New dashboard**.
+3. Pulsa **Add visualization**.
+4. Selecciona la fuente de datos Loki.
+5. Introduce una de las consultas anteriores.
+6. Configura la visualización como **Logs**.
+7. Asigna el nombre correspondiente al panel.
+8. Pulsa **Apply**.
+9. Repite el procedimiento para las otras tres consultas.
+10. Guarda el dashboard con el nombre `VulnTrack - Logs de contenedores`.
+
+### 8.8. Validar la recopilación de logs
+
+Si alguna consulta no devuelve registros:
+
+- Comprueba que Loki esté funcionando.
+- Verifica que Grafana esté conectado a Loki.
+- Confirma que el agente o mecanismo de recopilación esté enviando los logs de Docker a Loki.
+- Revisa que las etiquetas `container` coincidan exactamente con las etiquetas disponibles en los registros.
+- Amplía el rango de tiempo de Grafana para incluir eventos anteriores.
+- Genera actividad en el servicio y vuelve a ejecutar la consulta.
+
+> **Nota:** las consultas utilizan los nombres de contenedor proporcionados (`securehub_api`, `securehub_db` y `securehub_redis`). Si los contenedores reales de VulnTrack tienen otros nombres o Loki utiliza etiquetas diferentes, debes adaptar las consultas a las etiquetas disponibles.
+
+### 8.9. Resumen de consultas
+
+| Panel | Consulta |
+|---|---|
+| Logs de la API | `{container="securehub_api"}` |
+| Logs de la base de datos | `{container="securehub_db"}` |
+| Logs de Redis | `{container="securehub_redis"}` |
+| Errores de la API | `{container="securehub_api"} |= "error"` |
+
+Con esta configuración, Grafana permite centralizar la consulta de logs de los servicios y facilitar el diagnóstico de incidencias en VulnTrack.
+
+
