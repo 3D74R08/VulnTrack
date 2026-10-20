@@ -1,9 +1,17 @@
 const express = require('express');
+const { rateLimit } = require('express-rate-limit');
 const router = express.Router();
 const controller = require('../controllers/aceptacionController');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { autorizarRoles } = require('../middlewares/roleMiddleware');
-const { limitarAccesoArchivos } = require('../middlewares/rateLimitArchivos');
+
+const limitarAccesoArchivos = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un minuto.' }
+});
 
 router.use(verificarToken);
 // Aceptar riesgo: solo ADMINISTRADOR (la seguridad real la impone el backend).
