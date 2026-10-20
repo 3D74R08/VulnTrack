@@ -173,14 +173,23 @@ app.use((req, res) => {
 });
 
 const startSLAWorker = require('./workers/slaWorker');
+const { bootstrapDemoAdmin } = require('./services/bootstrapDemoAdmin');
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[INFO] API Core levantada en puerto ${PORT}`);
+const iniciarServidor = async () => {
+    await bootstrapDemoAdmin();
+    app.listen(PORT, () => {
+        console.log(`[INFO] API Core levantada en puerto ${PORT}`);
 
-  if (process.env.DISABLE_BACKGROUND_WORKERS !== 'true') {
-    startSLAWorker();
-  } else {
-    console.log('[INFO] Workers desactivados para el entorno de pruebas.');
-  }
+        if (process.env.DISABLE_BACKGROUND_WORKERS !== 'true') {
+            startSLAWorker();
+        } else {
+            console.log('[INFO] Workers desactivados para el entorno de pruebas.');
+        }
+    });
+};
+
+iniciarServidor().catch((error) => {
+    console.error('[ERROR] No se pudo inicializar la API:', error.message);
+    process.exit(1);
 });
