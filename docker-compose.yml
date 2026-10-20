@@ -176,6 +176,11 @@ services:
       REDIS_HOST: securehub-redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      # Activar solo para crear la cuenta de prueba en un entorno local nuevo.
+      DEMO_ADMIN_ENABLED: ${DEMO_ADMIN_ENABLED:-false}
+      DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-}
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
       FILE_SERVER_URL: http://securehub-files
       # Los workers SLA/NVD corren en securehub-worker (proceso separado), no en la API.
       DISABLE_BACKGROUND_WORKERS: "true"

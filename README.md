@@ -719,13 +719,18 @@ La restauración de datos y el despliegue de la aplicación son operaciones inde
 
 ## Cuentas de Prueba
 
-Las bases de datos incluyen un seed inicial con la empresa ACME Corp y tres usuarios de prueba. Los roles son totalmente editables desde el panel:
+La base de datos no incluye contraseñas compartidas en Git. Para crear automáticamente una cuenta administradora de demostración en el entorno local, copie `.env.example` a `.env` y configure:
 
-| Correo | Rol Asignado |
-|---|---|
-| `admin@acme.com` | **ADMINISTRADOR** (Permiso "ALL") |
-| `auditor@acme.com` | **AUDITOR** (Ver activos, Ver/Crear Vulnerabilidades) |
-| `dev@acme.com` | **REMEDIADOR** (Acceso a planes de acción) |
+```env
+DEMO_ADMIN_ENABLED=true
+DEMO_ADMIN_NAME=Grupo 4
+DEMO_ADMIN_EMAIL=grupo4@gmail.com
+DEMO_ADMIN_PASSWORD=define-una-clave-local
+```
+
+Luego inicie el proyecto con `docker compose up --build -d`. Al iniciar la API, se crea la empresa, sus roles y el usuario administrador si ese correo todavía no existe. La contraseña se almacena con bcrypt. El proceso no cambia cuentas existentes. Mantenga `.env` fuera de Git y desactive `DEMO_ADMIN_ENABLED` después de crear la cuenta si no desea que se aprovisione de nuevo al borrar el usuario.
+
+Para que otra persona clone el proyecto, debe crear su propio `.env` y definir allí la contraseña de demostración; no hace falta registrar la cuenta manualmente ni llamar a la API con Postman.
 
 **Nota de Seguridad (MFA):** Durante el primer inicio de sesión, el doble factor estará inactivo. El sistema forzará de manera estricta la configuración del MFA en cuanto el usuario intente desloguearse (Cerrar Sesión).
 
