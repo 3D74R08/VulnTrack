@@ -21,6 +21,23 @@ const FIRMA_MAX_BYTES = 2 * 1024 * 1024; // < 2 MB
 
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const resolverRutaSegura = (directorioBase, rutaRelativa) => {
+    const base = path.resolve(directorioBase); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    const destino = path.resolve(base, rutaRelativa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    const relativa = path.relative(base, destino);
+
+    if (
+        !relativa ||
+        relativa.startsWith(`..${path.sep}`) ||
+        relativa === '..' ||
+        path.isAbsolute(relativa)
+    ) {
+        throw new Error('Ruta de archivo no permitida.');
+    }
+
+    return destino;
+};
+
 /**
  * Aceptar el riesgo de una vulnerabilidad (solo ADMINISTRADOR).
  * Body: { id_hallazgo, justificacion, fecha_revision?, firma (dataURL PNG) }.
@@ -87,12 +104,15 @@ const aceptarRiesgo = async (req, res) => {
         }
 
         // --- 3) Guardar el PNG binario ANTES de la transacción (patrón agregarEvidencia) ---
-        const dir = path.join(UPLOAD_DIR, id_empresa);
+        if (!RE_UUID.test(String(id_empresa))) {
+            throw new Error('Identificador de empresa inválido.');
+        }
+        const dir = path.join(UPLOAD_DIR, id_empresa); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         fs.mkdirSync(dir, { recursive: true });
         const archivo = `${crypto.randomUUID()}.png`;
-        rutaPngAbsoluta = path.join(dir, archivo);
+        rutaPngAbsoluta = path.join(dir, archivo); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         fs.writeFileSync(rutaPngAbsoluta, bufferFirma);
-        const firmaRuta = path.join(id_empresa, archivo); // ruta relativa guardada en BD
+        const firmaRuta = path.join(id_empresa, archivo); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 
         const comentario = `Riesgo aceptado: ${justif.slice(0, 200)}`;
 
@@ -234,16 +254,31 @@ const consultarAceptacion = async (req, res) => {
  */
 const descargarFirma = async (req, res) => {
     const { id_empresa } = req.usuario;
+
     try {
-        // RLS impide leer la firma de otro tenant aunque se adivine el id.
-        const r = await queryConRLS(id_empresa,
-            'SELECT firma_ruta FROM aceptaciones_riesgo WHERE id_aceptacion = $1', [req.params.idAceptacion]);
-        if (r.rows.length === 0 || !r.rows[0].firma_ruta) return res.status(404).json({ error: 'Firma no encontrada.' });
-        const abs = path.resolve(UPLOAD_DIR, r.rows[0].firma_ruta);
-        if (!abs.startsWith(path.resolve(UPLOAD_DIR)) || !fs.existsSync(abs)) {
+        const r = await queryConRLS(
+            id_empresa,
+            'SELECT firma_ruta FROM aceptaciones_riesgo WHERE id_aceptacion = $1',
+            [req.params.idAceptacion]
+        );
+
+        if (r.rows.length === 0 || !r.rows[0].firma_ruta) {
             return res.status(404).json({ error: 'Firma no encontrada.' });
         }
-        return res.sendFile(abs);
+
+        let abs;
+
+        try {
+            abs = resolverRutaSegura(UPLOAD_DIR, r.rows[0].firma_ruta);
+        } catch {
+            return res.status(404).json({ error: 'Firma no encontrada.' });
+        }
+
+        if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+            return res.status(404).json({ error: 'Firma no encontrada.' });
+        }
+
+        return res.sendFile(abs); // nosemgrep: javascript.express.security.audit.express-res-sendfile.express-res-sendfile
     } catch (error) {
         console.error('[ERROR DESCARGAR FIRMA]:', error.message);
         return res.status(500).json({ error: 'Error al descargar la firma.' });
