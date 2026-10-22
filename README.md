@@ -28,11 +28,13 @@ El flujo operativo sigue una secuencia estricta:
 5. [Control de Acceso Basado en Permisos (RBAC Dinámico)](#control-de-acceso-basado-en-permisos-rbac-dinámico)
 6. [Prerrequisitos](#prerrequisitos)
 7. [Variables de Entorno](#variables-de-entorno)
-8. [Instrucciones de Despliegue Local](#instrucciones-de-despliegue-local)
+8. [VulnTrack – Guía de despliegue local](#vulntrack--guía-de-despliegue-local)
 9. [Solución de Problemas Comunes](#solución-de-problemas-comunes)
 10. [Cuentas de Prueba](#cuentas-de-prueba)
 11. [Postura de Seguridad y Checklist OWASP](#postura-de-seguridad-y-checklist-owasp)
-12. [Documentación del Proyecto](#documentación-del-proyecto)
+12. [Configuración de Grafana y Prometheus](#configuración-de-grafana-y-prometheus)
+13. [Configuración de logs en Grafana](#configuración-de-logs-en-grafana)
+14. [Documentación del Proyecto](#documentación-del-proyecto)
 
 ## Documentación del proyecto
 
@@ -221,11 +223,11 @@ Debes crear un archivo `.env` en la **raíz del proyecto** (junto a `docker-comp
 
 ---
 
-# 🚀 VulnTrack — Guía de despliegue local
+## VulnTrack — Guía de despliegue local
 
 Esta guía explica cómo instalar y ejecutar **VulnTrack** en un computador con Windows utilizando Docker Compose y PostgreSQL.
 
-## 1. Información del proyecto
+### 8.1. Información del proyecto
 
 - **Repositorio:** [VulnTrack en GitHub](https://github.com/3D74R08/VulnTrack)
 - **Rama:** `main`
@@ -236,7 +238,7 @@ Esta guía explica cómo instalar y ejecutar **VulnTrack** en un computador con 
 - **Reglas de Prometheus:** http://localhost:9090/rules
 - **Alertas de Prometheus:** http://localhost:9090/alerts
 
-## 2. Requisitos previos
+### 8.2. Requisitos previos
 
 Antes de comenzar, instala:
 
@@ -247,7 +249,7 @@ Antes de comenzar, instala:
 
 Abre Docker Desktop y verifica que esté funcionando.
 
-## 3. Descargar el proyecto
+### 8.3. Descargar el proyecto
 
 Abre PowerShell y ejecuta:
 
@@ -258,7 +260,7 @@ cd VulnTrack
 
 El repositorio se descargará en una carpeta llamada `VulnTrack`.
 
-## 4. Configurar las variables de entorno
+### 8.4. Configurar las variables de entorno
 
 En la raíz del proyecto, crea el archivo `.env` a partir de `.env.example`:
 
@@ -273,7 +275,7 @@ Abre `.env` y configura los valores necesarios para tu entorno.
 - El archivo `.env.example` sí puede publicarse, siempre que no contenga credenciales reales.
 - Si el proyecto necesita una copia de seguridad de PostgreSQL, debes obtenerla por un medio seguro y restaurarla según el procedimiento del proyecto.
 
-## 5. Iniciar VulnTrack
+### 8.5. Iniciar VulnTrack
 
 Desde la raíz del proyecto, ejecuta:
 
@@ -289,7 +291,7 @@ http://localhost:5173
 
 La API y las herramientas de monitorización estarán disponibles en sus respectivas direcciones cuando sus servicios estén funcionando.
 
-## 6. Ejecutar el frontend por separado (opcional)
+### 8.6. Ejecutar el frontend por separado (opcional)
 
 desde la terminal de git bash ejecuta el siguiente comando:
 
@@ -309,13 +311,13 @@ Después, abre http://localhost:5173.
 
 No ejecutes esta opción si el frontend ya está funcionando en el mismo puerto mediante Docker.
 
-## 7. Acceso a la aplicación
+### 8.7. Acceso a la aplicación
 
 Utiliza las credenciales de prueba proporcionadas para el entorno local.
 
 Por seguridad, no publiques contraseñas reales en el README ni en repositorios públicos. Entrega las credenciales mediante un canal privado.
 
-## 8. Detener los servicios
+### 8.8. Detener los servicios
 
 Para detener VulnTrack sin eliminar los datos persistentes:
 
@@ -325,7 +327,7 @@ docker compose down
 
 Para volver a iniciar los servicios, utiliza el comando de inicio indicado en la sección 5.
 
-## ✅ Verificación final
+### 8.9 ✅ Verificación final
 
 Antes de dar por terminada la instalación, comprueba que:
 
@@ -337,7 +339,7 @@ Antes de dar por terminada la instalación, comprueba que:
 
 **Nota:** la disponibilidad de los servicios depende de la configuración de Docker Compose, las variables de entorno y la inicialización de la base de datos.
 
-## 8. Seguridad y mantenimiento
+### 8.10. Seguridad y mantenimiento
 
 - No subir `.env`, contraseñas, tokens ni archivos `.dump` a GitHub.
 - Mantener una copia de seguridad privada de la base de datos.
@@ -349,7 +351,7 @@ Antes de dar por terminada la instalación, comprueba que:
 
 ---
 
-## 9. Resultado esperado
+### 8.11. Resultado esperado
 
 Al completar este procedimiento, VulnTrack debe estar ejecutándose en el segundo computador con sus servicios configurados, el frontend accesible y, si se restauró correctamente la copia de seguridad, los usuarios, las empresas y los demás registros que existían en el computador original.
 
@@ -386,11 +388,11 @@ Este proyecto nace bajo un enfoque *Security-by-Design*:
 | **A09 – Security Logging** | Tabla inmutable `EVENTOS_AUDITORIA` que registra intentos exitosos, creaciones, 401 y 403. |
 
 
-## 7. 📊 Configuración de Grafana y Prometheus
+## Configuración de Grafana y Prometheus
 
 VulnTrack utiliza Prometheus para recopilar métricas de la API y Grafana para visualizarlas mediante un dashboard de monitorización.
 
-### 7.1. Acceder a Grafana
+### 12.1. Acceder a Grafana
 
 1. Inicia los servicios de VulnTrack mediante Docker Compose.
 2. Abre Grafana en el navegador: [http://localhost:3001](http://localhost:3001).
@@ -404,7 +406,7 @@ VulnTrack utiliza Prometheus para recopilar métricas de la API y Grafana para v
 
 > **Nota:** dentro de un contenedor, `localhost` hace referencia al propio contenedor. Por eso, Grafana normalmente debe conectarse a Prometheus mediante el nombre de su servicio en Docker Compose.
 
-### 7.2. Crear el dashboard
+### 12.2. Crear el dashboard
 
 1. En el menú lateral, selecciona **Dashboards**.
 2. Pulsa **New → New dashboard**.
@@ -416,7 +418,7 @@ VulnTrack utiliza Prometheus para recopilar métricas de la API y Grafana para v
 8. Repite los pasos para cada una de las cuatro métricas.
 9. Al terminar, pulsa **Save dashboard** y asigna el nombre `VulnTrack - Monitorización de API`.
 
-### 7.3. Panel 1: Disponibilidad de la API
+### 12.3. Panel 1: Disponibilidad de la API
 
 **Nombre:** Disponibilidad de la API
 
@@ -435,7 +437,7 @@ Esta métrica indica si Prometheus puede recopilar métricas del objetivo de la 
 
 Configura los valores para que el panel permita distinguir fácilmente entre disponibilidad y fallo.
 
-### 7.4. Panel 2: Memoria utilizada por la API (MB)
+### 12.4. Panel 2: Memoria utilizada por la API (MB)
 
 **Nombre:** Memoria utilizada por la API (MB)
 
@@ -451,7 +453,7 @@ La consulta convierte la memoria residente del proceso de bytes a megabytes.
 
 En las opciones del panel, configura la unidad de visualización como **megabytes (MB)**. Así podrás observar cómo cambia el consumo de memoria de la API a lo largo del tiempo.
 
-### 7.5. Panel 3: Peticiones HTTP por segundo
+### 12.5. Panel 3: Peticiones HTTP por segundo
 
 **Nombre:** Peticiones HTTP por segundo
 
@@ -467,7 +469,7 @@ Esta consulta calcula la tasa agregada de peticiones HTTP por segundo durante un
 
 La métrica `vulntrack_http_requests_total` debe ser un contador acumulativo de solicitudes HTTP. La visualización permite observar los cambios en el tráfico de la API.
 
-### 7.6. Panel 4: Latencia media HTTP (segundos)
+### 12.6. Panel 4: Latencia media HTTP (segundos)
 
 **Nombre:** Latencia media HTTP (segundos)
 
@@ -487,7 +489,7 @@ Configura la unidad del panel como **seconds (s)** para visualizar la latencia e
 
 > **Nota:** esta consulta requiere que la API exponga las métricas `vulntrack_http_request_duration_seconds_sum` y `vulntrack_http_request_duration_seconds_count`. Si no hay solicitudes registradas en la ventana, el resultado puede no estar disponible.
 
-### 7.7. Validar las métricas
+### 12.7. Validar las métricas
 
 Si los paneles no muestran datos, realiza estas comprobaciones:
 
@@ -497,7 +499,7 @@ Si los paneles no muestran datos, realiza estas comprobaciones:
 4. Comprueba que el nombre del trabajo sea exactamente `vulntrack-api`.
 5. Asegúrate de que exista actividad reciente de la API y selecciona un rango de tiempo apropiado en Grafana.
 
-### 7.8. Resultado esperado
+### 12.8. Resultado esperado
 
 El dashboard de VulnTrack debe mostrar cuatro paneles:
 
@@ -511,11 +513,11 @@ El dashboard de VulnTrack debe mostrar cuatro paneles:
 Estas visualizaciones permiten observar la disponibilidad del objetivo, el consumo de memoria, el volumen de solicitudes y la latencia media de la API.
 
 
-## 8. 📋 Configuración de logs en Grafana
+## Configuración de logs en Grafana
 
 Esta sección explica cómo consultar y visualizar los registros de los contenedores de VulnTrack desde Grafana. Las consultas utilizan **LogQL**, el lenguaje de consulta de logs de Loki.
 
-### 8.1. Acceder a Grafana
+### 13.1. Acceder a Grafana
 
 1. Inicia los servicios de VulnTrack con Docker Compose.
 2. Abre Grafana en el navegador: [http://localhost:3001](http://localhost:3001).
@@ -528,7 +530,7 @@ Esta sección explica cómo consultar y visualizar los registros de los contened
 
 > **Importante:** las consultas de esta guía requieren una fuente de datos Loki configurada y logs que contengan las etiquetas `container` indicadas.
 
-### 8.2. Abrir el explorador de logs
+### 13.2. Abrir el explorador de logs
 
 1. En el menú lateral de Grafana, selecciona **Explore**.
 2. Elige la fuente de datos **Loki**.
@@ -537,7 +539,7 @@ Esta sección explica cómo consultar y visualizar los registros de los contened
 5. Selecciona el rango de tiempo que deseas revisar.
 6. Pulsa **Run query** para consultar los registros.
 
-### 8.3. Consultar los logs de la API
+### 13.3. Consultar los logs de la API
 
 **Nombre:** Logs de la API
 
@@ -551,7 +553,7 @@ Esta consulta muestra los registros asociados al contenedor `securehub_api`, sie
 
 Se puede utilizar para revisar la actividad general de la API, seguir eventos y analizar mensajes durante una sesión de diagnóstico.
 
-### 8.4. Consultar los logs de PostgreSQL
+### 13.4. Consultar los logs de PostgreSQL
 
 **Nombre:** Logs de la base de datos
 
@@ -565,7 +567,7 @@ Esta consulta permite visualizar los registros del contenedor `securehub_db`.
 
 Se utiliza para investigar mensajes relacionados con la base de datos, errores de conexión y otros eventos que queden registrados por el contenedor.
 
-### 8.5. Consultar los logs de Redis
+### 13.5. Consultar los logs de Redis
 
 **Nombre:** Logs de Redis
 
@@ -579,7 +581,7 @@ Esta consulta muestra los registros del contenedor `securehub_redis`.
 
 Permite revisar los mensajes registrados por Redis y apoyar el diagnóstico de problemas relacionados con el servicio de caché o almacenamiento en memoria.
 
-### 8.6. Filtrar errores de la API
+### 13.6. Filtrar errores de la API
 
 **Nombre:** Errores de la API
 
@@ -593,7 +595,7 @@ Esta consulta filtra los registros de `securehub_api` que contienen el texto `er
 
 Es útil para localizar mensajes de error durante el diagnóstico de la aplicación. El filtro de texto distingue mayúsculas y minúsculas, por lo que no necesariamente encontrará variantes como `ERROR` o `Error`.
 
-### 8.7. Crear un dashboard para los logs
+### 13.7. Crear un dashboard para los logs
 
 Para reunir las consultas en un dashboard:
 
@@ -608,7 +610,7 @@ Para reunir las consultas en un dashboard:
 9. Repite el procedimiento para las otras tres consultas.
 10. Guarda el dashboard con el nombre `VulnTrack - Logs de contenedores`.
 
-### 8.8. Validar la recopilación de logs
+### 13.8. Validar la recopilación de logs
 
 Si alguna consulta no devuelve registros:
 
@@ -621,7 +623,7 @@ Si alguna consulta no devuelve registros:
 
 > **Nota:** las consultas utilizan los nombres de contenedor proporcionados (`securehub_api`, `securehub_db` y `securehub_redis`). Si los contenedores reales de VulnTrack tienen otros nombres o Loki utiliza etiquetas diferentes, debes adaptar las consultas a las etiquetas disponibles.
 
-### 8.9. Resumen de consultas
+### 13.9. Resumen de consultas
 
 | Panel | Consulta |
 |---|---|
