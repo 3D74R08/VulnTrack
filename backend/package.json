@@ -1,6 +1,7 @@
 {
   "name": "securehub-api",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",

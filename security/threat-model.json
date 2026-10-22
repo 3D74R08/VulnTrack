@@ -61,7 +61,7 @@
         "thumbnail": "",
         "diagramType": "STRIDE",
         "id": 1,
-        "size": { "width": 1400, "height": 900 },
+        "size": { "width": 1600, "height": 950 },
         "diagramJson": {
           "cells": [
             {
@@ -141,6 +141,30 @@
             {
               "type": "tm.Flow", "size": { "width": 1, "height": 1 }, "position": { "x": 1120, "y": 730 }, "id": "10000000-0000-4000-8000-000000000017", "z": 17, "source": { "id": "10000000-0000-4000-8000-000000000015" }, "target": { "id": "10000000-0000-4000-8000-000000000016" }, "labels": [{ "position": 0.5, "attrs": { "text": { "text": "Configuración y secretos locales", "font-size": "12", "font-weight": "400" } } }],
               "attrs": { "text": { "text": "Configuración" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text" } }
+            },
+            {
+              "type": "tm.Process", "size": { "width": 170, "height": 80 }, "position": { "x": 250, "y": 150 }, "id": "10000000-0000-4000-8000-000000000018", "z": 18,
+              "attrs": { "text": { "text": "Scanner\nTrivy" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text isInScope" } }
+            },
+            {
+              "type": "tm.Process", "size": { "width": 190, "height": 80 }, "position": { "x": 1280, "y": 150 }, "id": "10000000-0000-4000-8000-000000000019", "z": 19, "outOfScope": true, "reasonOutOfScope": "Proveedor SMTP configurado por el operador",
+              "attrs": { "text": { "text": "Servidor SMTP" }, ".element-shape": { "class": "element-shape isOutOfScope" }, ".element-text": { "class": "element-text" } }
+            },
+            {
+              "type": "tm.Flow", "size": { "width": 1, "height": 1 }, "position": { "x": 650, "y": 250 }, "id": "10000000-0000-4000-8000-000000000020", "z": 20, "source": { "id": "10000000-0000-4000-8000-000000000004" }, "target": { "id": "10000000-0000-4000-8000-000000000005" }, "labels": [{ "position": 0.5, "attrs": { "text": { "text": "SQL / consultas SLA y NVD", "font-size": "12", "font-weight": "400" } } }],
+              "attrs": { "text": { "text": "SQL / RLS" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text" } }
+            },
+            {
+              "type": "tm.Flow", "size": { "width": 1, "height": 1 }, "position": { "x": 720, "y": 300 }, "id": "10000000-0000-4000-8000-000000000021", "z": 21, "source": { "id": "10000000-0000-4000-8000-000000000003" }, "target": { "id": "10000000-0000-4000-8000-000000000008" }, "labels": [{ "position": 0.5, "attrs": { "text": { "text": "HTTPS / consulta CVE", "font-size": "12", "font-weight": "400" } } }],
+              "attrs": { "text": { "text": "HTTPS / CVE" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text" } }
+            },
+            {
+              "type": "tm.Flow", "size": { "width": 1, "height": 1 }, "position": { "x": 1020, "y": 190 }, "id": "10000000-0000-4000-8000-000000000022", "z": 22, "source": { "id": "10000000-0000-4000-8000-000000000004" }, "target": { "id": "10000000-0000-4000-8000-000000000019" }, "labels": [{ "position": 0.5, "attrs": { "text": { "text": "SMTP / aviso de SLA", "font-size": "12", "font-weight": "400" } } }],
+              "attrs": { "text": { "text": "SMTP / correo" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text" } }
+            },
+            {
+              "type": "tm.Flow", "size": { "width": 1, "height": 1 }, "position": { "x": 350, "y": 220 }, "id": "10000000-0000-4000-8000-000000000023", "z": 23, "source": { "id": "10000000-0000-4000-8000-000000000018" }, "target": { "id": "10000000-0000-4000-8000-000000000003" }, "labels": [{ "position": 0.5, "attrs": { "text": { "text": "HTTP / API_URL", "font-size": "12", "font-weight": "400" } } }],
+              "attrs": { "text": { "text": "HTTP API" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text" } }
             }
           ]
         }

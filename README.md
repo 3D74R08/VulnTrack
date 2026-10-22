@@ -1,5 +1,11 @@
 # VulnTrack — Plataforma DevSecOps de Gestión Integral de Vulnerabilidades (VAM)
 
+[![DevSecOps Pipeline](https://github.com/3D74R08/VulnTrack/actions/workflows/devsecops.yml/badge.svg)](https://github.com/3D74R08/VulnTrack/actions/workflows/devsecops.yml)
+[![Infrastructure Security](https://github.com/3D74R08/VulnTrack/actions/workflows/infrastructure-security.yml/badge.svg)](https://github.com/3D74R08/VulnTrack/actions/workflows/infrastructure-security.yml)
+![Version](https://img.shields.io/badge/version-v1.0.0-informational)
+![Coverage](https://img.shields.io/badge/coverage-jest%20CI-brightgreen)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ![VulnTrack Banner](./frontend/public/vite.svg)
 
 > Desarrollado por el equipo de Seguridad y DevSecOps.
@@ -27,6 +33,20 @@ El flujo operativo sigue una secuencia estricta:
 9. [Solución de Problemas Comunes](#solución-de-problemas-comunes)
 10. [Cuentas de Prueba](#cuentas-de-prueba)
 11. [Postura de Seguridad y Checklist OWASP](#postura-de-seguridad-y-checklist-owasp)
+12. [Documentación del Proyecto](#documentación-del-proyecto)
+
+## Documentación del proyecto
+
+- [Manual de arquitectura y diagramas UML](docs/manuales/arquitectura.md)
+- [Manual de desarrollo](docs/manuales/desarrollo.md)
+- [Manual de despliegue y operación](docs/manuales/despliegue-operacion.md)
+- [Manual de seguridad](docs/manuales/seguridad.md)
+- [Manual de usuario](docs/manuales/usuario.md)
+- [Modelo Threat Dragon con DFD nivel 0 y 1](security/threat-model.json)
+
+## Licencia
+
+Este proyecto se distribuye bajo la licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) en la raíz del repositorio para más detalles.
 
 ---
 
@@ -42,7 +62,7 @@ Los nombres entre paréntesis corresponden a los servicios reales definidos en `
 | Caché / Mensajería | Redis 7 | `securehub-redis` | Almacenamiento rápido de sesiones y contadores del rate-limiting anti fuerza bruta del login (`middlewares/rateLimitLogin.js`), con degradación *fail-open* si Redis no está disponible. |
 | Servidor de evidencias | Nginx (`nginx:alpine`) | `securehub-files` | Sirve **únicamente** las evidencias estáticas (volumen `files-data` montado en `/usr/share/nginx/html/evidencias`). Según `config/nginx.conf` solo permite `GET`/`HEAD` sin listado de directorios. **No** termina TLS ni actúa como reverse proxy que enrute la API. |
 | Escáner | Imagen propia (`build ./scanner`) | `securehub-scanner` | Proceso que consulta la API vía `API_URL=http://securehub-api:3000` para su trabajo de escaneo. |
-| Automatización | `node-cron` | *(hilo interno de `securehub-api`)* | Hilo asíncrono integrado (`slaWorker.js`) para el monitoreo automatizado de vencimientos de SLA. No es un contenedor separado. |
+| Automatización | `node-cron` | `securehub-worker` | Proceso separado (`worker.js`) para monitoreo de SLA, enriquecimiento NVD y tareas asociadas. |
 | Autenticación | `jsonwebtoken`, `bcryptjs`, `speakeasy` + `qrcode` | *(parte de `securehub-api`)* | JWT stateless, hashing robusto de contraseñas con salt automático, MFA/TOTP compatible con Google Authenticator. |
 | Contenerización | Docker + Docker Compose | — | Orquestación local de todos los servicios anteriores. |
 
@@ -50,7 +70,7 @@ Los nombres entre paréntesis corresponden a los servicios reales definidos en `
 
 ## Arquitectura del Sistema
 
-La arquitectura aísla completamente a las empresas a nivel de base de datos mediante RLS (Row Level Security). Las tareas asíncronas se gestionan mediante un hilo `node-cron` integrado en la propia API (no hay contenedor de worker separado). El cliente accede **directamente** a dos servicios expuestos: el frontend en el puerto `80` (`securehub-frontend`) y la API en el puerto `3000` (`securehub-api`). No existe un reverse proxy que termine TLS ni que enrute la API; el servicio Nginx (`securehub-files`) solo sirve evidencias estáticas dentro de la red interna.
+La arquitectura aísla las empresas a nivel de base de datos mediante RLS (Row Level Security). En Docker Compose, las tareas asíncronas se ejecutan en `securehub-worker`, un contenedor separado de la API. La API desactiva allí los workers integrados para evitar duplicar las tareas. El cliente accede a la interfaz publicada en el puerto `80` y a la API en el puerto `3000`. No existe un reverse proxy que termine TLS ni que enrute la API; el servicio Nginx `securehub-files` sirve evidencias estáticas dentro de la red interna.
 
 ```mermaid
 graph TD
@@ -64,7 +84,8 @@ graph TD
 
     subgraph "Docker Compose - Red interna (securehub_lan)"
         Frontend["securehub-frontend<br/>SPA React :80"]
-        API["securehub-api<br/>Node.js + Express :3000<br/>(incluye worker node-cron)"]
+        API["securehub-api<br/>Node.js + Express :3000"]
+        Worker["securehub-worker<br/>node-cron / SLA / NVD"]
         Scanner["securehub-scanner<br/>build ./scanner"]
         Files["securehub-files<br/>Nginx estático de evidencias"]
         DB[("securehub-db<br/>PostgreSQL 18 + RLS<br/>:5432")]
@@ -81,6 +102,8 @@ graph TD
     API <-->|"Sesiones / rate-limit"| Redis
     API -->|"Consulta HTTP"| NVD
     API -->|"Lee/escribe evidencias"| Files
+    Worker -->|"Tareas SLA / acceso a datos"| DB
+    Worker -->|"Enriquecimiento CVE"| NVD
     Scanner -->|"API_URL http://securehub-api:3000"| API
 
     classDef external fill:#444,stroke:#f66,color:#fff
@@ -144,99 +167,7 @@ stateDiagram-v2
 
 ## Modelo Relacional de Datos (ERD)
 
-VulnTrack aísla de forma matemática a las empresas utilizando **Políticas RLS en PostgreSQL**: toda tabla de negocio cuelga de `EMPRESAS` mediante `id_empresa`. Además, cuenta con una tabla de roles dinámica por inquilino. Cada activo expone sus hallazgos (relación 1:N vía `id_activo`), y un plan de remediación agrupa una o varias vulnerabilidades a través de la tabla puente `PLAN_VULNERABILIDADES` (M:N), reemplazando el antiguo vínculo 1:1 `planes_remediacion.id_hallazgo`.
-
-```mermaid
-erDiagram
-    EMPRESAS ||--o{ ROLES_EMPRESA : tiene
-    EMPRESAS ||--o{ USUARIOS : contrata
-    EMPRESAS ||--o{ ACTIVOS : posee
-    EMPRESAS ||--o{ HALLAZGOS_VULN : reporta
-    EMPRESAS ||--o{ PLANES_REMEDIACION : gestiona
-    EMPRESAS ||--o{ EVENTOS_AUDITORIA : registra
-
-    ACTIVOS ||--o{ HALLAZGOS_VULN : "expone (id_activo)"
-    ACTIVOS ||--o{ PLANES_REMEDIACION : "aplica a (id_activo)"
-
-    USUARIOS ||--o{ HALLAZGOS_VULN : "audita (id_auditor)"
-    USUARIOS ||--o{ PLANES_REMEDIACION : "remedia (id_remediador)"
-    USUARIOS ||--o{ EVENTOS_AUDITORIA : "genera (id_usuario)"
-
-    HALLAZGOS_VULN ||--o{ PLAN_VULNERABILIDADES : incluida_en
-    PLANES_REMEDIACION ||--o{ PLAN_VULNERABILIDADES : agrupa
-
-    EMPRESAS {
-        uuid id_empresa PK
-        string nombre_empresa
-        boolean estado
-    }
-
-    ROLES_EMPRESA {
-        uuid id_rol PK
-        uuid id_empresa FK
-        string nombre
-        jsonb permisos
-        boolean estado
-    }
-    
-    USUARIOS {
-        uuid id_usuario PK
-        uuid id_empresa FK
-        string correo UK
-        string password_hash
-        boolean mfa_enabled
-        string mfa_secret
-        boolean estado
-    }
-
-    ACTIVOS {
-        uuid id_activo PK
-        uuid id_empresa FK
-        string codigo_activo "UK por empresa"
-        string tipo
-        string criticidad
-        string estado_activo
-    }
-
-    HALLAZGOS_VULN {
-        uuid id_hallazgo PK
-        uuid id_empresa FK
-        uuid id_activo FK "1:N desde ACTIVOS"
-        uuid id_auditor FK
-        string cve_id
-        string severidad
-        float cvss
-        string estado_hallazgo "DETECTADA|EN_ANALISIS|PLANIFICADA|EN_REMEDIACION|MITIGADA|CORREGIDA|ACEPTADA|FALSO_POSITIVO|CERRADA"
-    }
-
-    PLANES_REMEDIACION {
-        uuid id_plan PK
-        uuid id_empresa FK
-        uuid id_activo FK
-        uuid id_remediador FK
-        uuid creado_por FK
-        string nombre
-        date fecha_limite
-        string estado_plan "PENDIENTE|EN_EJECUCION|COMPLETADO|VENCIDO|CANCELADO"
-    }
-
-    PLAN_VULNERABILIDADES {
-        uuid id_empresa FK
-        uuid id_plan PK "FK"
-        uuid id_hallazgo PK "FK"
-        boolean estado
-    }
-
-    EVENTOS_AUDITORIA {
-        uuid id_evento PK
-        uuid id_empresa FK
-        uuid id_usuario FK
-        string accion
-        string modulo
-        jsonb detalles
-        timestamp fecha_evento
-    }
-```
+Las tablas y relaciones cambian mediante migraciones. El esquema vigente está en `base_datos/init.sql` y `base_datos/02-migration-v2.sql` a `05-migration-v5.sql`; por eso no se conserva aquí un ERD parcial que pudiera contradecir la base de datos. El manual de arquitectura documenta las entidades y advierte qué debe mantenerse sincronizado con las migraciones.
 
 ---
 
