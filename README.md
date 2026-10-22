@@ -6,7 +6,6 @@
 ![Coverage](https://img.shields.io/badge/coverage-jest%20CI-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![VulnTrack Banner](./frontend/public/vite.svg)
 
 > Desarrollado por el equipo de Seguridad y DevSecOps.
 
