@@ -1,4 +1,4 @@
-FROM aquasec/trivy:0.76.0 AS trivy
+FROM aquasec/trivy:0.76.1 AS trivy
 
 FROM node:24-alpine
 
