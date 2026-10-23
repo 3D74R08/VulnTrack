@@ -3,7 +3,12 @@ jest.mock("../src/utils/auditoriaHelper", () => ({
   registrarAuditoria: jest.fn().mockResolvedValue(undefined)
 }));
 
+jest.mock("../src/config/db", () => ({
+  queryConRLS: jest.fn()
+}));
+
 const { registrarAuditoria } = require("../src/utils/auditoriaHelper");
+const { queryConRLS } = require("../src/config/db");
 const { autorizarRoles } = require("../src/middlewares/roleMiddleware");
 
 describe("Middleware de autorización por roles", () => {
@@ -13,6 +18,7 @@ describe("Middleware de autorización por roles", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    queryConRLS.mockResolvedValue({ rows: [] });
 
     req = { usuario: {} };
 
@@ -35,9 +41,12 @@ describe("Middleware de autorización por roles", () => {
 
   test("permite al administrador", async () => {
     req.usuario = {
-      id: 1,
-      rol: "ADMINISTRADOR"
+      id_usuario: 1,
+      id_empresa: 1
     };
+    queryConRLS.mockResolvedValue({
+      rows: [{ rol: "ADMINISTRADOR", permisos: [] }]
+    });
 
     await autorizarRoles("EDITAR_ROLES")(req, res, next);
 
@@ -47,10 +56,12 @@ describe("Middleware de autorización por roles", () => {
 
   test("permite un permiso coincidente", async () => {
     req.usuario = {
-      id: 2,
-      rol: "ANALISTA",
-      permisos: ["EDITAR_ROLES"]
+      id_usuario: 2,
+      id_empresa: 1
     };
+    queryConRLS.mockResolvedValue({
+      rows: [{ rol: "ANALISTA", permisos: ["EDITAR_ROLES"] }]
+    });
 
     await autorizarRoles("EDITAR_ROLES")(req, res, next);
 
@@ -66,6 +77,9 @@ describe("Middleware de autorización por roles", () => {
       rol: "CONSULTA",
       permisos: []
     };
+    queryConRLS.mockResolvedValue({
+      rows: [{ rol: "CONSULTA", permisos: [] }]
+    });
 
     req.method = "GET";
     req.originalUrl = "/api/roles";
@@ -117,6 +131,9 @@ describe("Middleware de autorización por roles", () => {
       rol: "ANALISTA",
       permisos: ["CONSULTAR_ACTIVOS"]
     };
+    queryConRLS.mockResolvedValue({
+      rows: [{ rol: "ANALISTA", permisos: ["CONSULTAR_ACTIVOS"] }]
+    });
 
     req.method = "GET";
     req.originalUrl = "/api/roles";
