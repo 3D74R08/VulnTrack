@@ -45,6 +45,7 @@ El flujo operativo sigue una secuencia estricta:
 - [Manual de usuario](docs/manuales/usuario.md)
 - [Informe técnico de implementación DevSecOps](docs/informe-tecnico.md)
 - [Modelo Threat Dragon con DFD nivel 0 y 1](security/threat-model.json)
+- [Video Demostracion](https://youtu.be/ipG4hSDgnOs).
 
 ## Licencia
 
