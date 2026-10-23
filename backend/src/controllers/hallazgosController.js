@@ -1,5 +1,6 @@
 const { queryConRLS } = require('../config/db');
 const { registrarAuditoria } = require('../utils/auditoriaHelper');
+const { crearNotificacion } = require('../utils/notificacionHelper');
 const { consultarCve } = require('../services/nvdService');
 const { crearVulnerabilidad, cambiarEstadoVulnerabilidad, ErrorNegocio } = require('../services/vulnerabilidadService');
 const { evaluarRiesgoAutomatico } = require('../services/riesgoService');
@@ -88,6 +89,10 @@ const actualizarHallazgo = async (req, res) => {
         if (r.rows.length === 0) return res.status(404).json({ error: 'Vulnerabilidad no encontrada.' });
         await registrarAuditoria(id_empresa, id_usuario, 'VULNERABILITY_UPDATED', 'Vulnerabilidades',
             { cve_id: r.rows[0].cve_id }, req.ip, { recurso: 'vulnerabilidad', id_recurso: req.params.id });
+        await crearNotificacion(id_empresa, {
+            tipo: 'VULN_ACTUALIZADA', titulo: `Vulnerabilidad actualizada: ${r.rows[0].cve_id}`,
+            recurso: 'vulnerabilidad', id_recurso: req.params.id
+        });
         res.status(200).json(r.rows[0]);
     } catch (error) { manejarError(res, error, 'ACTUALIZAR VULNERABILIDAD'); }
 };
@@ -101,6 +106,10 @@ const eliminarHallazgo = async (req, res) => {
         if (r.rows.length === 0) return res.status(404).json({ error: 'Vulnerabilidad no encontrada.' });
         await registrarAuditoria(id_empresa, id_usuario, 'VULNERABILITY_DELETED', 'Vulnerabilidades',
             { cve_id: r.rows[0].cve_id }, req.ip, { recurso: 'vulnerabilidad', id_recurso: req.params.id });
+        await crearNotificacion(id_empresa, {
+            tipo: 'VULN_ELIMINADA', titulo: `Vulnerabilidad eliminada: ${r.rows[0].cve_id}`,
+            recurso: 'vulnerabilidad', id_recurso: req.params.id
+        });
         res.status(200).json({ mensaje: 'Vulnerabilidad dada de baja (eliminación lógica).' });
     } catch (error) { manejarError(res, error, 'ELIMINAR VULNERABILIDAD'); }
 };

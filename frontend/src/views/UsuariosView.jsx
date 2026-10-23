@@ -95,7 +95,7 @@ export default function UsuariosView() {
           <Users className="w-8 h-8 text-brand-primary" />
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Gestión de Usuarios</h1>
         </div>
-        {tienePermiso('ADMINISTRADOR') && (
+        {tienePermiso('CREAR_USUARIOS') && (
           <button 
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center space-x-2 bg-brand-primary hover:bg-brand-secondary text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm"
@@ -133,7 +133,7 @@ export default function UsuariosView() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center space-x-2">
-                      {tienePermiso('ADMINISTRADOR') ? (
+                      {tienePermiso('CREAR_USUARIOS') ? (
                         <>
                           <button 
                             onClick={() => {

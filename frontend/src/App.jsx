@@ -93,7 +93,7 @@ function App() {
   return (
     <div className="min-h-screen flex font-sans">
       {/* Panel Izquierdo - Formulario */}
-      <div className="w-full lg:w-[480px] bg-brand-dark flex flex-col justify-center px-12 py-10">
+      <div className="w-full lg:w-[480px] bg-brand-dark flex flex-col justify-center px-6 sm:px-12 py-8 sm:py-10">
         {/* Logo */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-1">

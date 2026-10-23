@@ -34,10 +34,11 @@ export default function RemediacionesView() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const puedeGestionar = tienePermiso('GESTIONAR_REMEDIACION');
       const [planesData, hallazgosData, usuariosData] = await Promise.all([
         apiGet('/api/remediacion'),
-        apiGet('/api/hallazgos'),
-        apiGet('/api/usuarios')
+        puedeGestionar ? apiGet('/api/hallazgos') : Promise.resolve([]),
+        puedeGestionar ? apiGet('/api/usuarios') : Promise.resolve([])
       ]);
 
       setPlanes(planesData);
@@ -144,7 +145,7 @@ export default function RemediacionesView() {
             <p className="text-sm text-gray-500">Gestión de mitigación M:N y control de SLAs</p>
           </div>
         </div>
-        {tienePermiso('ANALISTA_SEGURIDAD', 'AUDITOR') && (
+        {tienePermiso('GESTIONAR_REMEDIACION') && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2 bg-brand-primary hover:bg-brand-secondary text-white px-4 py-2 rounded-lg transition-colors shadow-sm text-sm font-medium"
@@ -296,26 +297,28 @@ export default function RemediacionesView() {
                                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                    <h4 className="font-bold mb-3 text-gray-800 dark:text-gray-200 text-sm flex items-center gap-2">Control de Estado</h4>
                                    <p className="text-xs text-gray-500 mb-2">Marcar como COMPLETADO cerrará automáticamente las vulnerabilidades asociadas.</p>
-                                   <select 
-                                     className="border border-gray-300 dark:border-gray-600 rounded p-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                     value={plan.estado_plan}
-                                     onChange={async (e) => {
-                                        const nuevoEstado = e.target.value;
-                                        try {
-                                            await apiPatch(`/api/remediacion/${plan.id_plan}/estado`, { estado: nuevoEstado });
-                                            fetchData();
-                                            alert('Estado actualizado. Las vulnerabilidades asociadas se han actualizado.');
-                                        } catch(err) {
-                                            console.error(err);
-                                            alert(err.message || 'Error al cambiar estado.');
-                                        }
-                                     }}
-                                   >
-                                     <option value="PENDIENTE">Pendiente</option>
-                                     <option value="EN_EJECUCION">En Ejecución</option>
-                                     <option value="COMPLETADO">Completado</option>
-                                     <option value="CANCELADO">Cancelado</option>
-                                   </select>
+                                   {tienePermiso('GESTIONAR_REMEDIACION') && (
+                                     <select
+                                       className="border border-gray-300 dark:border-gray-600 rounded p-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                       value={plan.estado_plan}
+                                       onChange={async (e) => {
+                                          const nuevoEstado = e.target.value;
+                                          try {
+                                              await apiPatch(`/api/remediacion/${plan.id_plan}/estado`, { estado: nuevoEstado });
+                                              fetchData();
+                                              alert('Estado actualizado. Las vulnerabilidades asociadas se han actualizado.');
+                                          } catch(err) {
+                                              console.error(err);
+                                              alert(err.message || 'Error al cambiar estado.');
+                                          }
+                                       }}
+                                     >
+                                       <option value="PENDIENTE">Pendiente</option>
+                                       <option value="EN_EJECUCION">En Ejecución</option>
+                                       <option value="COMPLETADO">Completado</option>
+                                       <option value="CANCELADO">Cancelado</option>
+                                     </select>
+                                   )}
                                  </div>
 
                                  {tienePermiso('ADMINISTRADOR') && (

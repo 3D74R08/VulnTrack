@@ -5,9 +5,9 @@ const { verificarToken } = require('../middlewares/authMiddleware');
 const { autorizarRoles } = require('../middlewares/roleMiddleware');
 
 router.use(verificarToken);
-router.get('/', controller.obtenerRoles);
-router.post('/', autorizarRoles('EDITAR_ROLES', 'ADMINISTRADOR'), controller.crearRol);
-router.put('/:id', autorizarRoles('EDITAR_ROLES', 'ADMINISTRADOR'), controller.actualizarRol);
-router.delete('/:id', autorizarRoles('EDITAR_ROLES', 'ADMINISTRADOR'), controller.eliminarRol);
+router.get('/', autorizarRoles('EDITAR_ROLES', 'VER_USUARIOS', 'CREAR_USUARIOS'), controller.obtenerRoles);
+router.post('/', autorizarRoles('EDITAR_ROLES'), controller.crearRol);
+router.put('/:id', autorizarRoles('EDITAR_ROLES'), controller.actualizarRol);
+router.delete('/:id', autorizarRoles('EDITAR_ROLES'), controller.eliminarRol);
 
 module.exports = router;

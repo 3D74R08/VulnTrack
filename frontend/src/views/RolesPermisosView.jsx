@@ -12,7 +12,7 @@ export default function RolesPermisosView() {
 
   const todosLosPermisos = [
     { key: "VER_USUARIOS", label: "Ver Usuarios" },
-    { key: "CREAR_USUARIOS", label: "Gestionar Usuarios (Crear/Editar)" },
+    { key: "CREAR_USUARIOS", label: "Gestionar Usuarios" },
     { key: "VER_ACTIVOS", label: "Ver Activos" },
     { key: "CREAR_ACTIVOS", label: "Gestionar Activos" },
     { key: "VER_VULN", label: "Ver Vulnerabilidades" },
@@ -22,6 +22,8 @@ export default function RolesPermisosView() {
     { key: "VER_REMEDIACION", label: "Ver Planes de Acción" },
     { key: "GESTIONAR_REMEDIACION", label: "Gestionar Planes de Acción" },
     { key: "VER_AUDITORIA", label: "Ver Registros de Auditoría" },
+    { key: "VER_DASHBOARD", label: "Ver Métricas Ejecutivas" },
+    { key: "IMPORTAR_DATOS", label: "Importar Datos" },
     { key: "EDITAR_ROLES", label: "Administrar Roles y Permisos" }
   ];
 
@@ -47,7 +49,7 @@ export default function RolesPermisosView() {
         id_rol: role.id_rol, 
         nombre: role.nombre, 
         descripcion: role.descripcion, 
-        permisos: typeof role.permisos === 'string' ? JSON.parse(role.permisos) : role.permisos 
+        permisos: Array.isArray(role.permisos) ? role.permisos : JSON.parse(role.permisos || '[]')
       });
     } else {
       setFormData({ id_rol: null, nombre: '', descripcion: '', permisos: [] });
@@ -133,13 +135,13 @@ export default function RolesPermisosView() {
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permisos asignados:</p>
                   <div className="flex flex-wrap gap-1">
-                    {(typeof rol.permisos === 'string' ? JSON.parse(rol.permisos) : rol.permisos).slice(0, 5).map((p, idx) => (
+                    {(Array.isArray(rol.permisos) ? rol.permisos : JSON.parse(rol.permisos || '[]')).slice(0, 5).map((p, idx) => (
                       <span key={idx} className="text-[10px] bg-brand-accent/30 text-brand-primary px-2 py-1 rounded border border-brand-accent/40">
                         {p.replace('_', ' ')}
                       </span>
                     ))}
-                    {(typeof rol.permisos === 'string' ? JSON.parse(rol.permisos) : rol.permisos).length > 5 && (
-                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">+{rol.permisos.length - 5} más</span>
+                    {(Array.isArray(rol.permisos) ? rol.permisos : JSON.parse(rol.permisos || '[]')).length > 5 && (
+                      <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">+{(Array.isArray(rol.permisos) ? rol.permisos : JSON.parse(rol.permisos || '[]')).length - 5} más</span>
                     )}
                   </div>
                 </div>

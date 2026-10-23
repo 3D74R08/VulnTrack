@@ -96,8 +96,10 @@ export default function ActivosView() {
     try {
       // Load the asset's findings and remediation plans.
       const [hData, pData] = await Promise.all([
-        apiGet('/api/hallazgos'),
-        apiGet(`/api/remediacion?id_activo=${encodeURIComponent(activo.id_activo)}`)
+        tienePermiso('VER_VULN') ? apiGet('/api/hallazgos') : Promise.resolve([]),
+        tienePermiso('VER_REMEDIACION')
+          ? apiGet(`/api/remediacion?id_activo=${encodeURIComponent(activo.id_activo)}`)
+          : Promise.resolve([])
       ]);
 
       if (Array.isArray(hData)) {
@@ -166,7 +168,7 @@ export default function ActivosView() {
             <p className="text-sm text-gray-500">Inventario centralizado y postura de seguridad</p>
           </div>
         </div>
-        {tienePermiso('GESTOR_ACTIVOS') && (
+        {tienePermiso('CREAR_ACTIVOS') && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-brand-primary hover:bg-brand-secondary text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"
@@ -264,7 +266,7 @@ export default function ActivosView() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => openDetail(activo)} className="text-brand-primary hover:text-brand-secondary text-sm font-medium mr-3">Ver Detalle</button>
-                      {tienePermiso('GESTOR_ACTIVOS') && (
+                      {tienePermiso('CREAR_ACTIVOS') && (
                         <button onClick={() => handleDelete(activo.id_activo)} className="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
                       )}
                     </td>

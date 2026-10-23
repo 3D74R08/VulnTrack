@@ -62,11 +62,8 @@ export default function ImportacionView() {
     }
   };
 
-  // Accion administrativa: el backend POST /api/importacion/excel SOLO admite
-  // ADMINISTRADOR (un ANALISTA_SEGURIDAD recibiria 403), por lo que ocultamos
-  // el modulo salvo que se tenga ese permiso. Discrepancia documentada:
-  // antes la UI mostraba el modulo tambien a ANALISTA_SEGURIDAD.
-  if (!tienePermiso('ADMINISTRADOR')) {
+  // El acceso se valida aquí para la UX y también en el backend.
+  if (!tienePermiso('IMPORTAR_DATOS')) {
     return (
       <div className="p-6 text-center text-gray-500 mt-20">
         No tienes permisos para acceder a este módulo.

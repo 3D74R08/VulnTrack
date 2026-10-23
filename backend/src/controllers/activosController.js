@@ -1,5 +1,6 @@
 const { queryConRLS } = require('../config/db');
 const { registrarAuditoria } = require('../utils/auditoriaHelper');
+const { crearNotificacion } = require('../utils/notificacionHelper');
 
 const crearActivo = async (req, res) => {
     let { 
@@ -33,6 +34,11 @@ const crearActivo = async (req, res) => {
         );
         const activo = result.rows[0];
         await registrarAuditoria(id_empresa, id_usuario, 'ASSET_CREATED', 'Activos', { id_activo: activo.id_activo, codigo_activo }, req.ip);
+        await crearNotificacion(id_empresa, {
+            tipo: 'ACTIVO_CREADO', titulo: `Activo registrado: ${activo.nombre}`,
+            mensaje: `${activo.codigo_activo} · Criticidad ${activo.criticidad || 'no definida'}.`,
+            recurso: 'activo', id_recurso: activo.id_activo
+        });
         res.status(201).json(activo);
     } catch (error) {
         console.error("[ERROR CREAR ACTIVO]:", error.message);
@@ -128,6 +134,11 @@ const actualizarActivo = async (req, res) => {
             return res.status(404).json({ error: "Activo no encontrado o no tienes permisos." });
         }
         await registrarAuditoria(id_empresa, id_usuario, 'ASSET_UPDATED', 'Activos', { id_activo: id }, req.ip);
+        await crearNotificacion(id_empresa, {
+            tipo: 'ACTIVO_ACTUALIZADO', titulo: `Activo actualizado: ${result.rows[0].nombre}`,
+            mensaje: `Se actualizaron los datos de ${result.rows[0].codigo_activo}.`,
+            recurso: 'activo', id_recurso: id
+        });
         res.status(200).json(result.rows[0]);
     } catch (error) {
         console.error("[ERROR ACTUALIZAR ACTIVO]:", error.message);
@@ -141,7 +152,7 @@ const eliminarActivo = async (req, res) => {
 
     try {
         const result = await queryConRLS(id_empresa,
-            `UPDATE activos SET estado = FALSE WHERE id_activo = $1 AND estado = TRUE RETURNING id_activo`,
+            `UPDATE activos SET estado = FALSE WHERE id_activo = $1 AND estado = TRUE RETURNING id_activo, nombre, codigo_activo`,
             [id]
         );
         
@@ -149,6 +160,11 @@ const eliminarActivo = async (req, res) => {
             return res.status(404).json({ error: "Activo no encontrado o ya estaba inactivo." });
         }
         await registrarAuditoria(id_empresa, id_usuario, 'ASSET_DELETED', 'Activos', { id_activo: id }, req.ip);
+        await crearNotificacion(id_empresa, {
+            tipo: 'ACTIVO_BAJA', titulo: `Activo dado de baja: ${result.rows[0].nombre}`,
+            mensaje: `${result.rows[0].codigo_activo} fue dado de baja.`,
+            recurso: 'activo', id_recurso: id
+        });
         res.status(200).json({ mensaje: "Activo dado de baja (Soft Delete) exitosamente." });
     } catch (error) {
         console.error("[ERROR ELIMINAR ACTIVO]:", error.message);

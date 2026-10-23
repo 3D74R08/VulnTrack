@@ -64,16 +64,33 @@ export default function ResumenDashboard() {
 
   useEffect(() => {
     fetchData();
+    const refreshDashboard = () => fetchData();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+    const refreshTimer = window.setInterval(fetchData, 30000);
+    window.addEventListener('vulntrack:data-updated', refreshDashboard);
+    window.addEventListener('focus', refreshDashboard);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('vulntrack:data-updated', refreshDashboard);
+      window.removeEventListener('focus', refreshDashboard);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [hallazgos, remediaciones, riesgosArr] = await Promise.all([
+      const respuestas = await Promise.allSettled([
         apiGet('/api/hallazgos'),
         apiGet('/api/remediacion'),
         apiGet('/api/riesgos')
       ]);
+      const [hallazgos, remediaciones, riesgosArr] = respuestas.map(respuesta =>
+        respuesta.status === 'fulfilled' ? respuesta.value : []
+      );
 
       let criticas = 0;
       let altas = 0;
@@ -116,15 +133,16 @@ export default function ResumenDashboard() {
         const riesgoNiveles = { 'CRITICO': 4, 'ALTO': 3, 'MEDIO': 2, 'BAJO': 1 };
         let maxRiesgo = 0;
         riesgosArr.forEach(r => {
-          const nivel = riesgoNiveles[r.riesgo_global] || 0;
+          if (CERRADAS.includes(r.estado_hallazgo)) return;
+          const nivel = riesgoNiveles[r.clasificacion] || 0;
           if (nivel > maxRiesgo) maxRiesgo = nivel;
         });
         riesgoGlobal = Object.keys(riesgoNiveles).find(k => riesgoNiveles[k] === maxRiesgo) || 'BAJO';
-      } else if (criticas > 0) {
+      } else if (hallazgos.some(h => !CERRADAS.includes(h.estado_hallazgo) && h.severidad === 'CRITICA')) {
         riesgoGlobal = 'CRITICO';
-      } else if (altas > 0) {
+      } else if (hallazgos.some(h => !CERRADAS.includes(h.estado_hallazgo) && h.severidad === 'ALTA')) {
         riesgoGlobal = 'ALTO';
-      } else if (medias > 0) {
+      } else if (hallazgos.some(h => !CERRADAS.includes(h.estado_hallazgo) && h.severidad === 'MEDIA')) {
         riesgoGlobal = 'MEDIO';
       }
 
@@ -209,7 +227,7 @@ export default function ResumenDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <h3 className="text-gray-500 text-sm font-medium">Vulnerabilidades críticas</h3>
@@ -237,7 +255,7 @@ export default function ResumenDashboard() {
             <h3 className="text-gray-500 text-sm font-medium">Riesgo global</h3>
             <ShieldCheck className="w-5 h-5 text-brand-primary" />
           </div>
-          <p className={`text-3xl font-bold mt-2 ${getRiesgoColor(metrics.riesgoGlobal)}`}>
+          <p className={`text-2xl sm:text-3xl leading-tight break-words font-bold mt-2 ${getRiesgoColor(metrics.riesgoGlobal)}`}>
             {metrics.riesgoGlobal}
           </p>
         </div>

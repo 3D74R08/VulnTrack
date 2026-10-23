@@ -1,5 +1,5 @@
 const express = require('express');
-const { registrar, login, configurarMFA, habilitarMFA } = require('../controllers/authController');
+const { registrar, login, configurarMFA, habilitarMFA, refrescarSesion } = require('../controllers/authController');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { limitarLogin } = require('../middlewares/rateLimitLogin');
 
@@ -12,5 +12,6 @@ router.post('/login', limitarLogin(), login);
 // Rutas protegidas (El usuario debe haber hecho login normal primero para configurarlo)
 router.get('/mfa/configurar', verificarToken, configurarMFA);
 router.post('/mfa/habilitar', verificarToken, habilitarMFA);
+router.get('/refresh', verificarToken, refrescarSesion);
 
 module.exports = router;

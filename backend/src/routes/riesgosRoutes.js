@@ -5,7 +5,7 @@ const { verificarToken } = require('../middlewares/authMiddleware');
 const { autorizarRoles } = require('../middlewares/roleMiddleware');
 
 router.use(verificarToken);
-router.post('/', autorizarRoles('ADMINISTRADOR', 'ANALISTA_SEGURIDAD'), controller.registrarRiesgo);
-router.get('/', controller.obtenerRiesgos);
+router.post('/', autorizarRoles('GESTIONAR_RIESGOS'), controller.registrarRiesgo);
+router.get('/', autorizarRoles('VER_RIESGOS'), controller.obtenerRiesgos);
 
 module.exports = router;

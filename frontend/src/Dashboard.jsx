@@ -10,7 +10,7 @@ import RolesPermisosView from './views/RolesPermisosView';
 import EvidenciasView from './views/EvidenciasView';
 import ReportesView from './views/ReportesView';
 import ImportacionView from './views/ImportacionView';
-import { getUserData } from './utils/auth';
+import { getUserData, tienePermiso } from './utils/auth';
 import { apiGet, apiPost, apiPut } from './utils/apiClient';
 import { UploadCloud, Sun, Moon } from 'lucide-react';
 
@@ -36,8 +36,38 @@ export default function Dashboard({ onLogout }) {
     const data = getUserData();
     setUserData(data);
     if (data) setMfaEnabledSession(data.mfa_enabled || false);
+    refreshSession();
     fetchNotifications();
+    const refreshNotifications = () => {
+      refreshSession();
+      fetchNotifications();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshNotifications();
+    };
+    const refreshTimer = window.setInterval(refreshNotifications, 30000);
+    window.addEventListener('vulntrack:data-updated', refreshNotifications);
+    window.addEventListener('focus', refreshNotifications);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('vulntrack:data-updated', refreshNotifications);
+      window.removeEventListener('focus', refreshNotifications);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
+
+  const refreshSession = async () => {
+    try {
+      const data = await apiGet('/api/auth/refresh');
+      if (data.token) {
+        localStorage.setItem('vulntrack_token', data.token);
+        setUserData(getUserData());
+      }
+    } catch (error) {
+      console.error('Error actualizando permisos de sesión:', error);
+    }
+  };
 
   const handleLogoutAttempt = () => {
     if (!mfaEnabledSession) {
@@ -110,16 +140,16 @@ export default function Dashboard({ onLogout }) {
   const navSections = [
     {
       items: [
-        { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
-        { id: 'usuarios', label: 'Usuarios', icon: Users },
-        { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck },
-        { id: 'activos', label: 'Activos', icon: Monitor },
-        { id: 'vulnerabilidades', label: 'Vulnerabilidades', icon: AlertTriangle },
-        { id: 'importacion', label: 'Importación', icon: UploadCloud },
-        { id: 'riesgos', label: 'Riesgos', icon: Crosshair },
-        { id: 'remediaciones', label: 'Remediación', icon: CheckSquare },
-        { id: 'evidencias', label: 'Evidencias', icon: ClipboardList },
-        { id: 'reportes', label: 'Reportes', icon: FileText },
+        { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, permissions: ['VER_DASHBOARD', 'VER_USUARIOS', 'CREAR_USUARIOS', 'VER_ACTIVOS', 'CREAR_ACTIVOS', 'VER_VULN', 'CREAR_VULN', 'VER_RIESGOS', 'GESTIONAR_RIESGOS', 'VER_REMEDIACION', 'GESTIONAR_REMEDIACION', 'VER_AUDITORIA', 'IMPORTAR_DATOS', 'EDITAR_ROLES'] },
+        { id: 'usuarios', label: 'Usuarios', icon: Users, permissions: ['VER_USUARIOS', 'CREAR_USUARIOS'] },
+        { id: 'roles', label: 'Roles y Permisos', icon: ShieldCheck, permissions: ['EDITAR_ROLES'] },
+        { id: 'activos', label: 'Activos', icon: Monitor, permissions: ['VER_ACTIVOS'] },
+        { id: 'vulnerabilidades', label: 'Vulnerabilidades', icon: AlertTriangle, permissions: ['VER_VULN'] },
+        { id: 'importacion', label: 'Importación', icon: UploadCloud, permissions: ['IMPORTAR_DATOS'] },
+        { id: 'riesgos', label: 'Riesgos', icon: Crosshair, permissions: ['VER_RIESGOS'] },
+        { id: 'remediaciones', label: 'Remediación', icon: CheckSquare, permissions: ['VER_REMEDIACION', 'GESTIONAR_REMEDIACION'] },
+        { id: 'evidencias', label: 'Evidencias', icon: ClipboardList, permissions: ['VER_AUDITORIA', 'GESTIONAR_REMEDIACION'] },
+        { id: 'reportes', label: 'Reportes', icon: FileText, permissions: ['VER_DASHBOARD', 'VER_ACTIVOS', 'VER_VULN', 'VER_RIESGOS', 'VER_REMEDIACION'] },
       ]
     }
   ];
@@ -142,7 +172,7 @@ export default function Dashboard({ onLogout }) {
     <div className="min-h-screen bg-brand-light dark:bg-gray-900 flex font-sans">
 
       {/* Sidebar */}
-      <aside className="w-64 bg-brand-dark text-gray-300 flex flex-col h-screen sticky top-0 overflow-hidden">
+      <aside className="hidden md:flex w-64 shrink-0 bg-brand-dark text-gray-300 flex-col h-screen sticky top-0 overflow-hidden">
 
         {/* Logo */}
         <div className="p-5 pb-6">
@@ -159,7 +189,7 @@ export default function Dashboard({ onLogout }) {
 
         {/* Nav */}
         <div className="flex-1 overflow-y-auto px-3 space-y-1">
-          {navSections[0].items.map(item => {
+          {navSections[0].items.filter(item => tienePermiso(...item.permissions)).map(item => {
             const Icon = item.icon;
             const isActive = vistaActual === item.id;
             return (
@@ -223,11 +253,14 @@ export default function Dashboard({ onLogout }) {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 flex flex-col min-h-screen">
+      <main className="min-w-0 flex-1 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 h-14 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative max-w-md flex-1">
+        <header className="bg-white dark:bg-gray-800 min-h-14 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-2 sticky top-0 z-10">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="md:hidden bg-gradient-to-br from-brand-primary to-brand-secondary p-2 rounded-lg shrink-0" aria-label="SecureHub">
+              <Shield className="text-white" size={18} />
+            </div>
+            <div className="relative min-w-0 max-w-md flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
@@ -239,7 +272,7 @@ export default function Dashboard({ onLogout }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
             <div className="relative">
               <button 
                 onClick={toggleNotifications}
@@ -254,7 +287,7 @@ export default function Dashboard({ onLogout }) {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 z-50">
+                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 z-50">
                   <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
                     <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Notificaciones</h3>
                   </div>
@@ -292,8 +325,44 @@ export default function Dashboard({ onLogout }) {
           </div>
         </header>
 
+        <nav aria-label="Navegación principal" className="md:hidden flex gap-1 overflow-x-auto px-3 py-2 bg-brand-dark text-gray-300">
+          {navSections[0].items.filter(item => tienePermiso(...item.permissions)).map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setVistaActual(item.id)}
+                aria-current={vistaActual === item.id ? 'page' : undefined}
+                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${vistaActual === item.id ? 'bg-brand-primary text-white' : 'text-gray-300 hover:bg-white/10'}`}
+              >
+                <Icon size={16} />{item.label}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setVistaActual('configuracion')}
+            aria-current={vistaActual === 'configuracion' ? 'page' : undefined}
+            className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${vistaActual === 'configuracion' ? 'bg-brand-primary text-white' : 'text-gray-300 hover:bg-white/10'}`}
+          >
+            <Settings size={16} />Configuración
+          </button>
+          <button
+            onClick={toggleDarkMode}
+            className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10"
+          >
+            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            {isDarkMode ? 'Modo claro' : 'Modo oscuro'}
+          </button>
+          <button
+            onClick={handleLogoutAttempt}
+            className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10"
+          >
+            <LogOut size={16} />Cerrar sesión
+          </button>
+        </nav>
+
         {/* Content */}
-        <div className="p-8 flex-1 bg-white dark:bg-gray-800">
+        <div className="min-w-0 p-4 sm:p-6 lg:p-8 flex-1 bg-white dark:bg-gray-800">
           {vistaActual === 'dashboard' && <ResumenDashboard />}
           {vistaActual === 'usuarios' && <UsuariosView />}
           {vistaActual === 'roles' && <RolesPermisosView />}

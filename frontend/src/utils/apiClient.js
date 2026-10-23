@@ -79,7 +79,11 @@ async function request(path, { method = 'GET', body, isForm = false, publico = f
     throw err;
   }
 
-  return response.json();
+  const data = await response.json();
+  if (method !== 'GET') {
+    window.dispatchEvent(new Event('vulntrack:data-updated'));
+  }
+  return data;
 }
 
 // Variante para descargas: devuelve el blob crudo (y maneja 401/errores igual).

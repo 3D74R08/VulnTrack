@@ -62,7 +62,7 @@ export default function VulnerabilidadesView() {
     try {
       const [hData, aData] = await Promise.all([
         apiGet('/api/hallazgos'),
-        apiGet('/api/activos')
+        tienePermiso('CREAR_VULN') ? apiGet('/api/activos') : Promise.resolve([])
       ]);
 
       if (Array.isArray(hData)) setHallazgos(hData);
@@ -265,7 +265,7 @@ export default function VulnerabilidadesView() {
             <p className="text-sm text-gray-500">Hallazgos, seguimiento y correlación NVD</p>
           </div>
         </div>
-        {tienePermiso('AUDITOR') && (
+        {tienePermiso('CREAR_VULN') && (
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-brand-primary hover:bg-brand-secondary text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"
@@ -368,7 +368,7 @@ export default function VulnerabilidadesView() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => openDetail(h)} className="text-brand-primary hover:text-brand-secondary text-sm font-medium mr-3">Ver Detalle</button>
-                      {tienePermiso('AUDITOR') && (
+                      {tienePermiso('CREAR_VULN') && (
                         <button onClick={() => handleDelete(h.id_hallazgo)} className="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
                       )}
                     </td>
@@ -531,7 +531,7 @@ export default function VulnerabilidadesView() {
                     <Activity className="w-5 h-5 text-brand-primary" />
                     Evaluación de Riesgo Local
                   </h3>
-                  {tienePermiso('ADMINISTRADOR') &&
+                  {tienePermiso('GESTIONAR_RIESGOS') &&
                    !['ACEPTADA', 'CERRADA', 'FALSO_POSITIVO'].includes(selectedHallazgo.estado_hallazgo) && (
                     <button
                       onClick={abrirAceptacion}

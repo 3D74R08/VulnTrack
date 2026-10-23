@@ -10,6 +10,7 @@ import {
   Route
 } from 'lucide-react';
 import { apiGet, apiUpload } from '../utils/apiClient';
+import { tienePermiso } from '../utils/auth';
 
 export default function EvidenciasView() {
   const [events, setEvents] = useState([]);
@@ -36,20 +37,17 @@ export default function EvidenciasView() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch users to map IDs to names
-        const usersData = await apiGet('/api/usuarios');
+        const [auditData, planesData, usersData] = await Promise.all([
+          tienePermiso('VER_AUDITORIA') ? apiGet('/api/auditoria') : Promise.resolve([]),
+          tienePermiso('VER_REMEDIACION') ? apiGet('/api/remediacion') : Promise.resolve([]),
+          tienePermiso('VER_USUARIOS') ? apiGet('/api/usuarios') : Promise.resolve([])
+        ]);
         const usersMap = {};
         usersData.forEach(u => {
           usersMap[u.id_usuario] = u.nombre_completo;
         });
         setUsers(usersMap);
-
-        // Fetch audit logs
-        const auditData = await apiGet('/api/auditoria');
         setEvents(auditData);
-
-        // Fetch Planes de Remediación
-        const planesData = await apiGet('/api/remediacion');
         setPlanes(planesData);
       } catch (error) {
         console.error("Error fetching audit data:", error);
@@ -140,7 +138,7 @@ export default function EvidenciasView() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 mb-8">
+      {tienePermiso('GESTIONAR_REMEDIACION') && <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 mb-8">
         <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
           <Camera className="w-5 h-5 mr-2 text-brand-primary" />
           Subir Nueva Evidencia
@@ -193,7 +191,7 @@ export default function EvidenciasView() {
             </button>
           </div>
         </form>
-      </div>
+      </div>}
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center">

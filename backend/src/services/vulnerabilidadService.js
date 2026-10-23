@@ -94,11 +94,11 @@ const crearVulnerabilidad = async (id_empresa, id_usuario, datos, opciones = {})
         { recurso: 'vulnerabilidad', id_recurso: vuln.id_hallazgo,
           descripcion: `${cve_id} registrada en ${activo.rows[0].codigo_activo}` });
 
-    if (notificar && vuln.severidad === 'CRITICA') {
+    if (notificar) {
         await crearNotificacion(id_empresa, {
-            tipo: 'VULN_CRITICA',
-            titulo: `Nueva vulnerabilidad crítica: ${cve_id}`,
-            mensaje: `Registrada en ${activo.rows[0].codigo_activo} - ${activo.rows[0].nombre} (CVSS ${vuln.cvss}).`,
+            tipo: vuln.severidad === 'CRITICA' ? 'VULN_CRITICA' : 'VULN_REGISTRADA',
+            titulo: vuln.severidad === 'CRITICA' ? `Nueva vulnerabilidad crítica: ${cve_id}` : `Nueva vulnerabilidad: ${cve_id}`,
+            mensaje: `Registrada en ${activo.rows[0].codigo_activo} - ${activo.rows[0].nombre}${vuln.cvss ? ` (CVSS ${vuln.cvss})` : ''}.`,
             recurso: 'vulnerabilidad', id_recurso: vuln.id_hallazgo
         });
     }
@@ -132,12 +132,14 @@ const cambiarEstadoVulnerabilidad = async (id_empresa, id_usuario, id_hallazgo, 
         { cve_id: actual.rows[0].cve_id, anterior, nuevo: estado }, ip,
         { recurso: 'vulnerabilidad', id_recurso: id_hallazgo, descripcion: `${anterior} → ${estado}` });
 
-    if (estado === 'CORREGIDA') {
-        await crearNotificacion(id_empresa, {
-            tipo: 'VULN_CORREGIDA', titulo: `Vulnerabilidad corregida: ${actual.rows[0].cve_id}`,
-            recurso: 'vulnerabilidad', id_recurso: id_hallazgo
-        });
-    }
+    await crearNotificacion(id_empresa, {
+        tipo: estado === 'CORREGIDA' ? 'VULN_CORREGIDA' : 'VULN_ESTADO_ACTUALIZADO',
+        titulo: estado === 'CORREGIDA'
+            ? `Vulnerabilidad corregida: ${actual.rows[0].cve_id}`
+            : `Estado actualizado: ${actual.rows[0].cve_id}`,
+        mensaje: `${anterior} → ${estado}`,
+        recurso: 'vulnerabilidad', id_recurso: id_hallazgo
+    });
     return upd.rows[0];
 };
 

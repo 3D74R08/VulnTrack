@@ -16,12 +16,12 @@ const limitarAccesoArchivos = rateLimit({
 });
 
 router.use(verificarToken);
-router.post('/', autorizarRoles('ADMINISTRADOR', 'ANALISTA_SEGURIDAD', 'AUDITOR'), controller.crearPlan);
-router.get('/', controller.obtenerPlanes);
-router.get('/:id', controller.obtenerPlanPorId);
-router.put('/:id', autorizarRoles('ADMINISTRADOR', 'ANALISTA_SEGURIDAD', 'REMEDIADOR'), controller.actualizarPlan);
-router.patch('/:id/estado', autorizarRoles('ADMINISTRADOR', 'ANALISTA_SEGURIDAD', 'REMEDIADOR'), controller.cambiarEstadoPlan);
+router.post('/', autorizarRoles('GESTIONAR_REMEDIACION'), controller.crearPlan);
+router.get('/', autorizarRoles('VER_REMEDIACION'), controller.obtenerPlanes);
+router.get('/evidencia/:id_evidencia', limitarAccesoArchivos, autorizarRoles('VER_REMEDIACION'), controller.descargarEvidencia);
+router.get('/:id', autorizarRoles('VER_REMEDIACION'), controller.obtenerPlanPorId);
+router.put('/:id', autorizarRoles('GESTIONAR_REMEDIACION'), controller.actualizarPlan);
+router.patch('/:id/estado', autorizarRoles('GESTIONAR_REMEDIACION'), controller.cambiarEstadoPlan);
 router.patch('/:id/asignar', autorizarRoles('ADMINISTRADOR'), controller.asignarRemediador);
-router.post('/:id/evidencias', limitarAccesoArchivos, autorizarRoles('ADMINISTRADOR', 'ANALISTA_SEGURIDAD', 'REMEDIADOR'), upload.single('archivo'), controller.agregarEvidencia);
-router.get('/evidencia/:id_evidencia', limitarAccesoArchivos, controller.descargarEvidencia);
+router.post('/:id/evidencias', limitarAccesoArchivos, autorizarRoles('GESTIONAR_REMEDIACION'), upload.single('archivo'), controller.agregarEvidencia);
 module.exports = router;

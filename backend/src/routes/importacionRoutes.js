@@ -13,10 +13,8 @@ const upload = multer({
 
 router.use(verificarToken);
 
-// Descargar plantilla (cualquier rol autenticado, o limitarlo si se desea)
-router.get('/plantilla', controller.descargarPlantilla);
+router.get('/plantilla', autorizarRoles('IMPORTAR_DATOS'), controller.descargarPlantilla);
 
-// Solo Administradores pueden importar
-router.post('/excel', autorizarRoles('ADMINISTRADOR'), upload.single('file'), controller.importar);
+router.post('/excel', autorizarRoles('IMPORTAR_DATOS'), upload.single('file'), controller.importar);
 
 module.exports = router;

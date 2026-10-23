@@ -1,6 +1,24 @@
 const { queryConRLS } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const auditoria = require('../utils/auditoriaHelper');
+const { expandirPermisos } = require('../utils/permisos');
+
+const validarRolAsignable = async (id_empresa, actor, rol) => {
+    const result = await queryConRLS(id_empresa,
+        'SELECT permisos FROM roles_empresa WHERE id_empresa = $1 AND nombre = $2 AND estado = TRUE',
+        [id_empresa, rol]
+    );
+    if (result.rows.length === 0) return { error: 'El rol seleccionado no existe.' };
+
+    const permisosObjetivo = Array.isArray(result.rows[0].permisos) ? result.rows[0].permisos : [];
+    const permisosActor = expandirPermisos(actor.permisos);
+    const esAdmin = actor.rol === 'ADMINISTRADOR' || permisosActor.includes('ALL');
+    if (!esAdmin && (rol === 'ADMINISTRADOR' || permisosObjetivo.includes('ALL') ||
+        permisosObjetivo.some(p => !permisosActor.includes(p)))) {
+        return { error: 'No puedes asignar un rol con permisos superiores a los tuyos.' };
+    }
+    return {};
+};
 
 const obtenerUsuarios = async (req, res) => {
     const { id_empresa } = req.usuario;
@@ -16,6 +34,8 @@ const crearUsuario = async (req, res) => {
     const { nombre_completo, correo, password, rol } = req.body;
     const { id_empresa, id_usuario } = req.usuario;
     try {
+        const validacionRol = await validarRolAsignable(id_empresa, req.usuario, rol);
+        if (validacionRol.error) return res.status(403).json(validacionRol);
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
         const result = await queryConRLS(id_empresa,
@@ -37,10 +57,13 @@ const actualizarRol = async (req, res) => {
     const { rol } = req.body;
     const { id_empresa } = req.usuario;
     try {
+        const validacionRol = await validarRolAsignable(id_empresa, req.usuario, rol);
+        if (validacionRol.error) return res.status(403).json(validacionRol);
         const result = await queryConRLS(id_empresa, 
             'UPDATE usuarios SET rol = $1 WHERE id_usuario = $2 AND estado = TRUE RETURNING id_usuario, nombre_completo, rol',
             [rol, id]
         );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado.' });
         res.status(200).json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: "Error al actualizar rol." });

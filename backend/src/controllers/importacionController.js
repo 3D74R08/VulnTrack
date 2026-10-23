@@ -291,12 +291,12 @@ const importar = async (req, res) => {
             { archivo: req.file.originalname, ...resumen, errores: errores.length }, req.ip,
             { recurso: 'importacion', resultado: errores.length ? 'PARCIAL' : 'EXITO',
               descripcion: `Activos ${resumen.activos_creados}+${resumen.activos_actualizados}, vulnerabilidades ${resumen.vulnerabilidades_creadas}` });
-        if (criticas > 0) {
-            await crearNotificacion(id_empresa, {
-                tipo: 'VULN_CRITICA', titulo: `Carga masiva: ${criticas} vulnerabilidad(es) crítica(s)`,
-                mensaje: `Importadas desde ${req.file.originalname}.`, recurso: 'importacion'
-            });
-        }
+        await crearNotificacion(id_empresa, {
+            tipo: 'IMPORTACION_COMPLETADA',
+            titulo: `Carga masiva completada: ${req.file.originalname}`,
+            mensaje: `${resumen.activos_creados + resumen.activos_actualizados} activo(s) procesado(s), ${resumen.vulnerabilidades_creadas} vulnerabilidad(es) importada(s)${criticas > 0 ? `, incluidas ${criticas} crítica(s)` : ''}.`,
+            recurso: 'importacion'
+        });
 
         // 14. Resumen
         res.status(200).json({ resumen, errores });

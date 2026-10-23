@@ -113,7 +113,8 @@ const login = async (req, res) => {
         );
         let permisosAsignados = [];
         if (rolesCheck.rows.length > 0) {
-            permisosAsignados = rolesCheck.rows[0].permisos;
+            permisosAsignados = Array.isArray(rolesCheck.rows[0].permisos) ? rolesCheck.rows[0].permisos : [];
+            if (usuario.rol !== 'ADMINISTRADOR') permisosAsignados = permisosAsignados.filter(p => p !== 'ALL');
         } else if (usuario.rol === 'ADMINISTRADOR') {
             permisosAsignados = ['ALL'];
         }
@@ -217,4 +218,38 @@ const habilitarMFA = async (req, res) => {
     }
 };
 
-module.exports = { registrar, login, configurarMFA, habilitarMFA };
+const refrescarSesion = async (req, res) => {
+    const { id_empresa, id_usuario } = req.usuario;
+    try {
+        const result = await queryConRLS(id_empresa,
+            `SELECT u.id_usuario, u.id_empresa, u.rol, u.nombre_completo, u.correo, u.mfa_enabled,
+                    r.permisos
+             FROM usuarios u
+             LEFT JOIN roles_empresa r
+               ON r.id_empresa = u.id_empresa AND r.nombre = u.rol AND r.estado = TRUE
+             WHERE u.id_usuario = $1 AND u.id_empresa = $2 AND u.estado = TRUE`,
+            [id_usuario, id_empresa]
+        );
+        if (result.rows.length === 0) return res.status(401).json({ error: 'El usuario ya no está activo.' });
+
+        const usuario = result.rows[0];
+        const token = jwt.sign({
+            id_usuario: usuario.id_usuario,
+            id_empresa: usuario.id_empresa,
+            rol: usuario.rol,
+            permisos: usuario.rol === 'ADMINISTRADOR'
+                ? ['ALL']
+                : (Array.isArray(usuario.permisos) ? usuario.permisos.filter(p => p !== 'ALL') : []),
+            nombre_completo: usuario.nombre_completo,
+            correo: usuario.correo,
+            mfa_enabled: usuario.mfa_enabled
+        }, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+        return res.status(200).json({ token });
+    } catch (error) {
+        console.error('[ERROR REFRESCAR SESION]:', error.message);
+        return res.status(500).json({ error: 'No se pudo actualizar la sesión.' });
+    }
+};
+
+module.exports = { registrar, login, configurarMFA, habilitarMFA, refrescarSesion };

@@ -6,20 +6,19 @@ const { autorizarRoles } = require('../middlewares/roleMiddleware');
 
 router.use(verificarToken);
 // Solo Administrador y Auditor pueden registrar o eliminar hallazgos
-router.post('/', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.crearHallazgo);
-router.delete('/:id', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.eliminarHallazgo);
-// Todos pueden leer hallazgos y consultar NVD
-router.get('/', controller.obtenerHallazgos);
-router.get('/nvd/:cve', controller.consultarNVD);
+router.post('/', autorizarRoles('CREAR_VULN'), controller.crearHallazgo);
+router.delete('/:id', autorizarRoles('CREAR_VULN'), controller.eliminarHallazgo);
+router.get('/', autorizarRoles('VER_VULN'), controller.obtenerHallazgos);
+router.get('/nvd/:cve', autorizarRoles('VER_VULN'), controller.consultarNVD);
 // Detalle completo (trazabilidad): riesgo, planes e historial de una vulnerabilidad.
 // IMPORTANTE: debe ir ANTES de cualquier otra ruta '/:id/...' pero el orden con '/nvd/:cve'
 // es seguro porque 'nvd' no es un UUID. Esta ruta faltaba y por eso el detalle daba 404.
-router.get('/:id', controller.obtenerHallazgoPorId);
+router.get('/:id', autorizarRoles('VER_VULN'), controller.obtenerHallazgoPorId);
 // Cambiar estado de la vulnerabilidad (deja historial + auditoría)
-router.patch('/:id/estado', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.cambiarEstado);
+router.patch('/:id/estado', autorizarRoles('CREAR_VULN'), controller.cambiarEstado);
 // Reintento manual de enriquecimiento NVD (recalcula riesgo y plan si aplica)
-router.post('/:id/reenriquecer', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.reenriquecer);
+router.post('/:id/reenriquecer', autorizarRoles('CREAR_VULN'), controller.reenriquecer);
 // Editar campos editables de la vulnerabilidad (observaciones, fuente, fecha)
-router.patch('/:id', autorizarRoles('ADMINISTRADOR', 'AUDITOR'), controller.actualizarHallazgo);
+router.patch('/:id', autorizarRoles('CREAR_VULN'), controller.actualizarHallazgo);
 
 module.exports = router;

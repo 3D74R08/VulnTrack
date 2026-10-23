@@ -11,7 +11,7 @@ import {
   FileType
 } from 'lucide-react';
 import { apiGet } from '../utils/apiClient';
-import { getUserData } from '../utils/auth';
+import { getUserData, tienePermiso } from '../utils/auth';
 import { descargarMarkdown, descargarPdf } from '../utils/documentos';
 
 // Calculo cliente de estado SLA (misma logica que getSLAInfo de RemediacionesView):
@@ -36,8 +36,10 @@ export default function ReportesView() {
   React.useEffect(() => {
     const fetchActivos = async () => {
       try {
-        const data = await apiGet('/api/activos');
-        setActivos(data);
+        if (tienePermiso('VER_ACTIVOS')) {
+          const data = await apiGet('/api/activos');
+          setActivos(data);
+        }
       } catch (error) {
         console.error("Error fetching activos:", error);
       }

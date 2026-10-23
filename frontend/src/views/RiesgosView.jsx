@@ -20,7 +20,7 @@ export default function RiesgosView() {
     try {
       const [riesgosData, hallazgosData] = await Promise.all([
         apiGet('/api/riesgos'),
-        apiGet('/api/hallazgos')
+        tienePermiso('VER_VULN') ? apiGet('/api/hallazgos') : Promise.resolve([])
       ]);
 
       setRiesgos(riesgosData);
@@ -107,7 +107,7 @@ export default function RiesgosView() {
           <Target className="w-8 h-8 text-brand-primary" />
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Evaluación y Gestión de Riesgos</h1>
         </div>
-        {tienePermiso('ANALISTA_SEGURIDAD') && (
+        {tienePermiso('GESTIONAR_RIESGOS') && (
           <button
             onClick={handleAutoEvaluate}
             className="flex items-center space-x-2 bg-brand-primary hover:bg-brand-primary text-white px-4 py-2 rounded-lg transition-colors"
