@@ -94,10 +94,10 @@ export default function ActivosView() {
     setActivoHallazgos([]);
     setActivoPlanes([]);
     try {
-      // We get all hallazgos and filter by id_activo
+      // Load the asset's findings and remediation plans.
       const [hData, pData] = await Promise.all([
         apiGet('/api/hallazgos'),
-        apiGet('/api/remediacion')
+        apiGet(`/api/remediacion?id_activo=${encodeURIComponent(activo.id_activo)}`)
       ]);
 
       if (Array.isArray(hData)) {
@@ -106,9 +106,7 @@ export default function ActivosView() {
       }
       
       if (Array.isArray(pData)) {
-        const misPlanes = pData.filter(p => p.id_activo === activo.id_activo || (p.vulnerabilidades && p.vulnerabilidades.includes(activo.id_activo))); 
-        // Wait, the planes return 'id_hallazgo' in the simple query (when it was 1:1) but now it returns 'vulnerabilidades'. 
-        // But for simplicity, let's just show planes if they match any of my vulnerabilities
+        setActivoPlanes(pData);
       }
     } catch (e) {
       console.error(e);

@@ -168,7 +168,14 @@ const obtenerPlanes = async (req, res) => {
 
     if (req.query.id_activo) {
         params.push(req.query.id_activo);
-        where += ` AND p.id_activo = $${params.length}`;
+        where += ` AND (p.id_activo = $${params.length} OR EXISTS (
+            SELECT 1
+            FROM plan_vulnerabilidades pv
+            JOIN hallazgos_vuln h ON h.id_hallazgo = pv.id_hallazgo
+            WHERE pv.id_plan = p.id_plan
+              AND pv.estado = TRUE
+              AND h.id_activo = $${params.length}
+        ))`;
     }
 
     try {
