@@ -99,8 +99,8 @@
               "attrs": { "text": { "text": "Redis\nRate limit" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text isInScope" } }
             },
             {
-              "type": "tm.Store", "size": { "width": 160, "height": 75 }, "position": { "x": 1000, "y": 500 }, "id": "10000000-0000-4000-8000-000000000007", "z": 7,
-              "attrs": { "text": { "text": "Nginx / evidencias" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text isInScope" } }
+              "type": "tm.Store", "size": { "width": 245, "height": 75 }, "position": { "x": 1000, "y": 500 }, "id": "10000000-0000-4000-8000-000000000007", "z": 7,
+              "attrs": { "text": { "text": "Almacenamiento de evidencias (uploads-data)" }, ".element-shape": { "class": "element-shape isInScope" }, ".element-text": { "class": "element-text isInScope" } }
             },
             {
               "type": "tm.Process", "size": { "width": 170, "height": 75 }, "position": { "x": 1000, "y": 150 }, "id": "10000000-0000-4000-8000-000000000008", "z": 8, "outOfScope": true, "reasonOutOfScope": "Servicio externo de NIST",

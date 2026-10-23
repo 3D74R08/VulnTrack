@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120" role="img" aria-labelledby="title desc">
+<title id="title">Diagrama UML de casos de uso de SecureHub</title>
+<desc id="desc">Cuatro vistas UML separadas por perfil. Los actores se conectan mediante líneas rectas a los casos de uso dentro de límites de sistema SecureHub.</desc>
+<defs>
+  <style>
+    text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#172b4d}
+    .title{font-size:28px;font-weight:700}.panel-title{font-size:19px;font-weight:700;fill:#123b68}
+    .boundary{fill:#f8fbff;stroke:#4b6f95;stroke-width:2}.panel{fill:#fff;stroke:#c8d4e2;stroke-width:1.5}
+    .usecase{fill:#fff;stroke:#3974a5;stroke-width:1.8}.association{fill:none;stroke:#526b82;stroke-width:1.6}
+    .actor{stroke:#173f65;stroke-width:2.5;fill:none;stroke-linecap:round}.actor-label{font-size:15px;font-weight:600}
+    .case-label{font-size:14px;text-anchor:middle}.boundary-label{font-size:14px;font-weight:600;fill:#42617e}
+  </style>
+</defs>
+<rect width="1440" height="1120" fill="#f2f5f9"/>
+<text x="720" y="42" text-anchor="middle" class="title">Diagrama UML de casos de uso · SecureHub</text>
+<!-- panel: administrador, operaciones -->
+<rect x="24" y="66" width="684" height="480" rx="12" class="panel"/>
+<text x="48" y="99" class="panel-title">Administrador · operaciones</text>
+<rect x="210" y="116" width="474" height="406" rx="8" class="boundary"/>
+<text x="447" y="141" text-anchor="middle" class="boundary-label">SecureHub</text>
+<!-- straight associations -->
+<path class="association" d="M151 302 L290 190 M151 302 L290 250 M151 302 L290 310 M151 302 L290 370 M151 302 L290 430 M151 302 L290 490"/>
+<!-- actor -->
+<circle cx="126" cy="270" r="15" class="actor"/><path d="M126 285 L126 331 M101 302 L151 302 M126 331 L103 365 M126 331 L149 365" class="actor"/>
+<text x="126" y="390" text-anchor="middle" class="actor-label">Administrador</text>
+<ellipse cx="480" cy="190" rx="190" ry="25" class="usecase"/><text x="480" y="195" class="case-label">Iniciar sesión</text>
+<ellipse cx="480" cy="250" rx="190" ry="25" class="usecase"/><text x="480" y="255" class="case-label">Consultar panel e información</text>
+<ellipse cx="480" cy="310" rx="190" ry="25" class="usecase"/><text x="480" y="315" class="case-label">Crear y actualizar activos</text>
+<ellipse cx="480" cy="370" rx="190" ry="25" class="usecase"/><text x="480" y="375" class="case-label">Registrar y actualizar hallazgos CVE</text>
+<ellipse cx="480" cy="430" rx="190" ry="25" class="usecase"/><text x="480" y="435" class="case-label">Evaluar riesgos</text>
+<ellipse cx="480" cy="490" rx="190" ry="25" class="usecase"/><text x="480" y="495" class="case-label">Importar activos y hallazgos desde Excel</text>
+<!-- panel: administrador, governance -->
+<rect x="732" y="66" width="684" height="480" rx="12" class="panel"/>
+<text x="756" y="99" class="panel-title">Administrador · gobierno y remediación</text>
+<rect x="918" y="116" width="474" height="406" rx="8" class="boundary"/>
+<text x="1155" y="141" text-anchor="middle" class="boundary-label">SecureHub</text>
+<path class="association" d="M859 302 L998 190 M859 302 L998 250 M859 302 L998 310 M859 302 L998 370 M859 302 L998 430 M859 302 L998 490"/>
+<circle cx="834" cy="270" r="15" class="actor"/><path d="M834 285 L834 331 M809 302 L859 302 M834 331 L811 365 M834 331 L857 365" class="actor"/>
+<text x="834" y="390" text-anchor="middle" class="actor-label">Administrador</text>
+<ellipse cx="1188" cy="190" rx="190" ry="25" class="usecase"/><text x="1188" y="195" class="case-label">Administrar usuarios y roles</text>
+<ellipse cx="1188" cy="250" rx="190" ry="25" class="usecase"/><text x="1188" y="255" class="case-label">Crear planes de remediación</text>
+<ellipse cx="1188" cy="310" rx="190" ry="25" class="usecase"/><text x="1188" y="315" class="case-label">Actualizar estado de remediación</text>
+<ellipse cx="1188" cy="370" rx="190" ry="25" class="usecase"/><text x="1188" y="375" class="case-label">Adjuntar evidencias</text>
+<ellipse cx="1188" cy="430" rx="190" ry="25" class="usecase"/><text x="1188" y="435" class="case-label">Aceptar riesgo con firma</text>
+<ellipse cx="1188" cy="490" rx="190" ry="25" class="usecase"/><text x="1188" y="495" class="case-label">Consultar auditoría y reportes</text>
+<!-- panel: auditor -->
+<rect x="24" y="566" width="684" height="520" rx="12" class="panel"/>
+<text x="48" y="599" class="panel-title">Auditor</text>
+<rect x="210" y="620" width="474" height="436" rx="8" class="boundary"/>
+<text x="447" y="645" text-anchor="middle" class="boundary-label">SecureHub</text>
+<path class="association" d="M151 811 L290 700 M151 811 L290 780 M151 811 L290 860 M151 811 L290 940"/>
+<circle cx="126" cy="779" r="15" class="actor"/><path d="M126 794 L126 840 M101 811 L151 811 M126 840 L103 874 M126 840 L149 874" class="actor"/>
+<text x="126" y="899" text-anchor="middle" class="actor-label">Auditor</text>
+<ellipse cx="480" cy="700" rx="190" ry="29" class="usecase"/><text x="480" y="705" class="case-label">Iniciar sesión</text>
+<ellipse cx="480" cy="780" rx="190" ry="29" class="usecase"/><text x="480" y="785" class="case-label">Consultar activos y hallazgos</text>
+<ellipse cx="480" cy="860" rx="190" ry="29" class="usecase"/><text x="480" y="865" class="case-label">Registrar hallazgos de vulnerabilidad</text>
+<ellipse cx="480" cy="940" rx="190" ry="29" class="usecase"/><text x="480" y="945" class="case-label">Consultar riesgos</text>
+<!-- panel: remediator -->
+<rect x="732" y="566" width="684" height="520" rx="12" class="panel"/>
+<text x="756" y="599" class="panel-title">Remediador</text>
+<rect x="918" y="620" width="474" height="436" rx="8" class="boundary"/>
+<text x="1155" y="645" text-anchor="middle" class="boundary-label">SecureHub</text>
+<path class="association" d="M859 811 L998 700 M859 811 L998 780 M859 811 L998 860 M859 811 L998 940"/>
+<circle cx="834" cy="779" r="15" class="actor"/><path d="M834 794 L834 840 M809 811 L859 811 M834 840 L811 874 M834 840 L857 874" class="actor"/>
+<text x="834" y="899" text-anchor="middle" class="actor-label">Remediador</text>
+<ellipse cx="1188" cy="700" rx="190" ry="29" class="usecase"/><text x="1188" y="705" class="case-label">Iniciar sesión</text>
+<ellipse cx="1188" cy="780" rx="190" ry="29" class="usecase"/><text x="1188" y="785" class="case-label">Consultar activos y hallazgos</text>
+<ellipse cx="1188" cy="860" rx="190" ry="29" class="usecase"/><text x="1188" y="865" class="case-label">Actualizar estado del plan</text>
+<ellipse cx="1188" cy="940" rx="190" ry="29" class="usecase"/><text x="1188" y="945" class="case-label">Adjuntar evidencias</text>
+</svg>

@@ -28,13 +28,13 @@ El flujo operativo sigue una secuencia estricta:
 5. [Control de Acceso Basado en Permisos (RBAC Dinámico)](#control-de-acceso-basado-en-permisos-rbac-dinámico)
 6. [Prerrequisitos](#prerrequisitos)
 7. [Variables de Entorno](#variables-de-entorno)
-8. [VulnTrack – Guía de despliegue local](#vulntrack--guía-de-despliegue-local)
+8. [VulnTrack — Guía de despliegue local](#vulntrack-guía-de-despliegue-local)
 9. [Solución de Problemas Comunes](#solución-de-problemas-comunes)
-10. [Cuentas de Prueba](#cuentas-de-prueba)
-11. [Postura de Seguridad y Checklist OWASP](#postura-de-seguridad-y-checklist-owasp)
-12. [Configuración de Grafana y Prometheus](#configuración-de-grafana-y-prometheus)
-13. [Configuración de logs en Grafana](#configuración-de-logs-en-grafana)
-14. [Documentación del Proyecto](#documentación-del-proyecto)
+10. [Postura de Seguridad y Checklist OWASP](#postura-de-seguridad-y-checklist-owasp)
+11. [Configuración de Grafana y Prometheus](#configuración-de-grafana-y-prometheus)
+12. [Configuración de logs en Grafana](#configuración-de-logs-en-grafana)
+13. [Documentación del proyecto](#documentación-del-proyecto)
+14. [Licencia](#licencia)
 
 ## Documentación del proyecto
 
@@ -43,6 +43,7 @@ El flujo operativo sigue una secuencia estricta:
 - [Manual de despliegue y operación](docs/manuales/despliegue-operacion.md)
 - [Manual de seguridad](docs/manuales/seguridad.md)
 - [Manual de usuario](docs/manuales/usuario.md)
+- [Informe técnico de implementación DevSecOps](docs/informe-tecnico.md)
 - [Modelo Threat Dragon con DFD nivel 0 y 1](security/threat-model.json)
 
 ## Licencia
@@ -71,9 +72,17 @@ Los nombres entre paréntesis corresponden a los servicios reales definidos en `
 
 ## Arquitectura del Sistema
 
-La arquitectura aísla las empresas a nivel de base de datos mediante RLS (Row Level Security). En Docker Compose, las tareas asíncronas se ejecutan en `securehub-worker`, un contenedor separado de la API. La API desactiva allí los workers integrados para evitar duplicar las tareas. El cliente accede a la interfaz publicada en el puerto `80` y a la API en el puerto `3000`. No existe un reverse proxy que termine TLS ni que enrute la API; el servicio Nginx `securehub-files` sirve evidencias estáticas dentro de la red interna.
+La arquitectura aísla las empresas a nivel de base de datos mediante RLS (Row Level Security). En Docker Compose, las tareas asíncronas se ejecutan en `securehub-worker`, un contenedor separado de la API. La API desactiva allí los workers integrados para evitar duplicar las tareas. El cliente accede a la interfaz publicada en el puerto `80` y a la API en el puerto `3000`. No existe un reverse proxy que termine TLS ni que enrute la API. `securehub-files` sirve archivos estáticos desde `files-data`, mientras que la API guarda evidencias y firmas en `uploads-data`; son volúmenes separados.
 
 ```mermaid
+---
+config:
+  layout: elk
+  elk:
+    straightenEdges: true
+  flowchart:
+    curve: linear
+---
 graph TD
     subgraph "Zona pública / Internet"
         Client(["Usuario / Navegador"])
@@ -95,6 +104,11 @@ graph TD
 
     NVD["API NVD / NIST<br/>(Fuente externa de CVEs)"]
 
+    subgraph Storage["Almacenamiento persistente"]
+        Uploads[("uploads-data<br/>Evidencias y firmas de la API")]
+        StaticFiles[("files-data<br/>Volumen servido por Nginx")]
+    end
+
     Client -->|"HTTP :80 (SPA)"| Frontend
     Client -->|"HTTP :3000 (API REST)"| API
     Client -.->|"HTTP local (dev)"| Vite
@@ -102,7 +116,8 @@ graph TD
     API <-->|"Queries parametrizadas (RLS)"| DB
     API <-->|"Sesiones / rate-limit"| Redis
     API -->|"Consulta HTTP"| NVD
-    API -->|"Lee/escribe evidencias"| Files
+    API <-->|"Guarda y consulta evidencias"| Uploads
+    StaticFiles -->|"Archivos estáticos"| Files
     Worker -->|"Tareas SLA / acceso a datos"| DB
     Worker -->|"Enriquecimiento CVE"| NVD
     Scanner -->|"API_URL http://securehub-api:3000"| API
@@ -124,43 +139,43 @@ stateDiagram-v2
     direction LR
     [*] --> Inventario
 
-    state "Inventario y Activos" as Inventario {
+    state Inventario {
         [*] --> RegistroActivos
         RegistroActivos: Alta de servidores, BDs, APIs
     }
-
+    Inventario: Inventario y Activos
     Inventario --> Deteccion
 
-    state "Detección" as Deteccion {
+    state Deteccion {
         [*] --> CreacionHallazgo
         CreacionHallazgo --> ConsultaNVD
         CreacionHallazgo: Obligatorio ingresar ID
         ConsultaNVD: Auto-completado vía API NVD/NIST
     }
-
+    Deteccion: Detección
     Deteccion --> Inteligencia
 
-    state "Inteligencia de Riesgo" as Inteligencia {
+    state Inteligencia {
         [*] --> EvaluacionMatriz
-        EvaluacionMatriz: Probabilidad x Impacto -> Score de Riesgo
+        EvaluacionMatriz: Probabilidad por impacto = puntaje de riesgo
     }
-
+    Inteligencia: Inteligencia de Riesgo
     Inteligencia --> Remediacion
 
-    state "Remediación" as Remediacion {
+    state Remediacion {
         [*] --> AsignacionPlan
         AsignacionPlan --> ControlSLA
         AsignacionPlan: Asignación de fecha límite
         ControlSLA: Monitoreado por slaWorker.js
     }
-
+    Remediacion: Remediación
     Remediacion --> Trazabilidad
 
-    state "Trazabilidad" as Trazabilidad {
+    state Trazabilidad {
         [*] --> AuditoriaInmutable
         AuditoriaInmutable: Log append-only en EVENTOS_AUDITORIA
     }
-
+    Trazabilidad: Trazabilidad
     Trazabilidad --> [*]
 ```
 
@@ -168,7 +183,155 @@ stateDiagram-v2
 
 ## Modelo Relacional de Datos (ERD)
 
-Las tablas y relaciones cambian mediante migraciones. El esquema vigente está en `base_datos/init.sql` y `base_datos/02-migration-v2.sql` a `05-migration-v5.sql`; por eso no se conserva aquí un ERD parcial que pudiera contradecir la base de datos. El manual de arquitectura documenta las entidades y advierte qué debe mantenerse sincronizado con las migraciones.
+El diagrama refleja las tablas y claves foráneas del esquema vigente (`base_datos/init.sql` y migraciones v2–v5). `hallazgos_activos` fue sustituida en la migración v2 por la relación directa entre activo y hallazgo; los planes se relacionan con varios hallazgos mediante `plan_vulnerabilidades`.
+
+```mermaid
+---
+config:
+  layout: dagre
+  er:
+    layoutDirection: TB
+    theme: default
+    look: classic
+  flowchart:
+    curve: linear
+---
+erDiagram
+    EMPRESAS {
+        uuid id_empresa PK
+        varchar nombre_empresa
+        boolean estado
+    }
+    ROLES_EMPRESA {
+        uuid id_rol PK
+        uuid id_empresa FK
+        varchar nombre
+        jsonb permisos
+        boolean estado
+    }
+    USUARIOS {
+        uuid id_usuario PK
+        uuid id_empresa FK
+        varchar nombre_completo
+        varchar correo
+        varchar rol
+        boolean estado
+    }
+    ACTIVOS {
+        uuid id_activo PK
+        uuid id_empresa FK
+        varchar nombre
+        varchar tipo
+        varchar criticidad
+        varchar estado_activo
+    }
+    HALLAZGOS_VULN {
+        uuid id_hallazgo PK
+        uuid id_empresa FK
+        uuid id_activo FK
+        uuid id_auditor FK
+        varchar cve_id
+        varchar severidad
+        varchar estado_hallazgo
+    }
+    RIESGOS {
+        uuid id_riesgo PK
+        uuid id_empresa FK
+        uuid id_hallazgo FK
+        uuid evaluado_por FK
+        int probabilidad
+        int impacto
+        int puntaje
+        varchar clasificacion
+    }
+    PLANES_REMEDIACION {
+        uuid id_plan PK
+        uuid id_empresa FK
+        uuid id_activo FK
+        uuid id_remediador FK
+        uuid creado_por FK
+        varchar nombre
+        varchar prioridad
+        varchar estado_plan
+    }
+    PLAN_VULNERABILIDADES {
+        uuid id_empresa FK
+        uuid id_plan PK, FK
+        uuid id_hallazgo PK, FK
+        boolean estado
+    }
+    EVIDENCIAS {
+        uuid id_evidencia PK
+        uuid id_empresa FK
+        uuid id_hallazgo FK
+        uuid id_plan FK
+        uuid subido_por FK
+        varchar tipo
+        varchar ruta_archivo
+    }
+    HISTORIAL_VULNERABILIDAD {
+        uuid id_historial PK
+        uuid id_empresa FK
+        uuid id_hallazgo FK
+        uuid id_usuario FK
+        varchar estado_anterior
+        varchar estado_nuevo
+    }
+    NOTIFICACIONES {
+        uuid id_notificacion PK
+        uuid id_empresa FK
+        uuid id_usuario FK
+        varchar tipo
+        varchar titulo
+        boolean leida
+    }
+    EVENTOS_AUDITORIA {
+        uuid id_evento PK
+        uuid id_empresa FK
+        uuid id_usuario FK
+        varchar accion
+        varchar modulo
+        timestamp fecha_evento
+    }
+    ACEPTACIONES_RIESGO {
+        uuid id_aceptacion PK
+        uuid id_empresa FK
+        uuid id_hallazgo FK
+        uuid aceptado_por FK
+        date fecha_revision
+        boolean estado
+    }
+
+    EMPRESAS ||--o{ ROLES_EMPRESA : define
+    EMPRESAS ||--o{ USUARIOS : tiene
+    EMPRESAS ||--o{ ACTIVOS : registra
+    EMPRESAS ||--o{ HALLAZGOS_VULN : registra
+    EMPRESAS ||--o{ RIESGOS : gestiona
+    EMPRESAS ||--o{ PLANES_REMEDIACION : gestiona
+    EMPRESAS ||--o{ PLAN_VULNERABILIDADES : gestiona
+    EMPRESAS ||--o{ EVIDENCIAS : almacena
+    EMPRESAS ||--o{ HISTORIAL_VULNERABILIDAD : registra
+    EMPRESAS ||--o{ NOTIFICACIONES : genera
+    EMPRESAS ||--o{ EVENTOS_AUDITORIA : audita
+    EMPRESAS ||--o{ ACEPTACIONES_RIESGO : registra
+    ACTIVOS ||--o{ HALLAZGOS_VULN : presenta
+    ACTIVOS o|--o{ PLANES_REMEDIACION : recibe
+    USUARIOS o|--o{ HALLAZGOS_VULN : audita
+    USUARIOS o|--o{ RIESGOS : evalua
+    USUARIOS o|--o{ PLANES_REMEDIACION : crea_o_remedia
+    USUARIOS o|--o{ EVIDENCIAS : sube
+    USUARIOS o|--o{ HISTORIAL_VULNERABILIDAD : registra
+    USUARIOS o|--o{ NOTIFICACIONES : recibe
+    USUARIOS o|--o{ EVENTOS_AUDITORIA : ejecuta
+    USUARIOS o|--o{ ACEPTACIONES_RIESGO : acepta
+    HALLAZGOS_VULN ||--o{ RIESGOS : evalua
+    HALLAZGOS_VULN ||--o{ PLAN_VULNERABILIDADES : incluido_en
+    PLANES_REMEDIACION ||--o{ PLAN_VULNERABILIDADES : agrupa
+    HALLAZGOS_VULN o|--o{ EVIDENCIAS : documenta
+    PLANES_REMEDIACION o|--o{ EVIDENCIAS : respalda
+    HALLAZGOS_VULN ||--o{ HISTORIAL_VULNERABILIDAD : cambia
+    HALLAZGOS_VULN ||--o{ ACEPTACIONES_RIESGO : puede_tener
+```
 
 ---
 
@@ -180,6 +343,14 @@ A diferencia de los sistemas tradicionales, VulnTrack no utiliza roles "quemados
 3. El middleware en Node.js valida la existencia del permiso exacto antes de permitir la ejecución.
 
 ```mermaid
+---
+config:
+  layout: elk
+  elk:
+    straightenEdges: true
+  flowchart:
+    curve: linear
+---
 graph LR
     Req(["Petición HTTP"]) --> A["Middleware: verificarToken<br/>(Valida firma y expiración)"]
     A -->|"Token inválido"| F1(("401 Unauthorized"))
