@@ -7,7 +7,6 @@
 | **Proyecto** | SecureHub / VulnTrack |
 | **Versión documental** | 1.0 — 20 de octubre de 2026 |
 | **Licencia** | MIT (`LICENSE`) |
-| **Estado** | Borrador técnico basado en archivos y evidencias compartidas; validar pendientes antes de producción |
 
 ---
 
@@ -153,17 +152,5 @@ En los archivos revisados no se encontró un job o configuración de Bandit. Ban
 5. Registrar el incidente y medidas preventivas sin copiar el secreto en tickets o reportes.
 
 ---
+[📄 Ver manual en PDF](Manual_4.5_Seguridad_SecureHub_CON_MONITOREO%20(1)%20(1).pdf)
 
-## 10. Evidencias requeridas para cerrar el manual
-
-* Exportar resultados reales de Gitleaks, Trivy, Semgrep y ZAP (HTML/JSON o logs del workflow).
-* Registrar la fecha, rama, commit, versión de herramientas y entorno analizado.
-* Adjuntar resultados de Jest y pruebas de regresión.
-* Confirmar que para el stack Node.js se utilizan Semgrep y ESLint Security en lugar de Bandit (orientado a Python).
-* Completar la matriz de vulnerabilidades con hallazgos reales, responsables, fechas y estado.
-
----
-
-## 11. Limitaciones
-
-Este documento describe controles y automatizaciones identificados en los archivos compartidos. No constituye certificación de seguridad, no reemplaza una prueba de penetración y no declara que el sistema esté libre de vulnerabilidades. Los resultados deben obtenerse en la versión y entorno de entrega.
