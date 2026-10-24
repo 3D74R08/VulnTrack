@@ -7,8 +7,6 @@
 | **Proyecto** | SecureHub / VulnTrack |
 | **Versión documental** | 1.0 — 20 de octubre de 2026 |
 | **Licencia** | MIT (`LICENSE`) |
-| **Estado** | Borrador técnico basado en archivos y evidencias compartidas; validar pendientes antes de producción |
-
 ---
 
 ## 1. Objetivo y alcance
@@ -192,12 +190,4 @@ El ejemplo es una plantilla: sustituir los marcadores por las variables reales y
 * Mantener imágenes y dependencias actualizadas y revisar los resultados de escaneo antes de liberar cambios.
 
 ---
-
-## 14. Evidencia de aceptación
-
-* Salida de `docker compose config --quiet` sin errores.
-* Captura de `docker compose ps` con estado de servicios.
-* Captura del frontend abierto en `localhost`.
-* Respuesta correcta de `/health`.
-* Logs sin errores críticos no resueltos.
-* Registro de fecha, commit/versión y persona que realizó la verificación.
+[📄 Ver manual en PDF](Manual_4.4_Despliegue_Operacion_SecureHub_FINAL.pdf)
