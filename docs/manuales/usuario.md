@@ -11,8 +11,6 @@
 | **Propósito** | Orientar al usuario final en el uso de las funcionalidades disponibles. |
 | **Fuente funcional** | `Manual funcional.docx` compartido para el proyecto. |
 | **Alcance visual** | Se conservan todas las descripciones y secuencias de pantallas del documento funcional original. |
-| **Estado** | Documento consolidado; validar las pantallas contra la versión desplegada antes de la entrega final. |
-
 ---
 
 ## 1. Objetivo
@@ -228,7 +226,4 @@ Este manual está dirigido a los usuarios con perfiles **Administrador**, **Audi
 | No se genera un reporte | Comprobar permisos, filtros y disponibilidad del servicio. |
 
 ---
-
-## 8. Nota de validación
-
-Esta versión conserva la información funcional del documento original, con una redacción revisada para mejorar la claridad, la coherencia y la ortografía. Antes de la entrega definitiva, verifique que las capturas correspondan a la versión desplegada y que los pasos descritos puedan reproducirse en el entorno de sustentación.
+[📄 Ver manual en PDF](Manual_4.6_Usuario_SecureHub.pdf)
