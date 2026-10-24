@@ -7,7 +7,6 @@
 | **Proyecto** | SecureHub / VulnTrack |
 | **Versión documental** | 1.0 — 20 de octubre de 2026 |
 | **Licencia** | MIT (`LICENSE`) |
-| **Estado** | Borrador técnico basado en archivos y evidencias compartidas; validar pendientes antes de producción |
 
 ---
 
@@ -192,8 +191,4 @@ git push -u origin feature/descripcion-corta
 
 ---
 
-## 13. Pendientes de validación
-
-* Definir formalmente las ramas protegidas y número de aprobaciones requeridas.
-* Registrar evidencia real de `npm test`, `npm run lint` y `npm run build` en la versión entregada.
-* Confirmar si el equipo exige Node.js 22 para desarrollo local o permite Node.js 24 alineado con las imágenes Docker.
+[📄 Ver manual en PDF](Manual_4.3_Desarrollo_SecureHub.pdf)
